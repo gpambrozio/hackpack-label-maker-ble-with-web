@@ -41,7 +41,13 @@
 
 #include <NimBLEDevice.h>
 
+#include "GCodeParser.h"
+
 #pragma endregion LIBRARIES
+
+#ifndef D13
+#define D13 13
+#endif
 
 //////////////////////////////////////////////////
           //  PINS AND PARAMETERS  //
@@ -264,10 +270,11 @@ void readBTCmd() {
           } else if (command.equalsIgnoreCase("pen-down")) {
               penDown();
               Serial.println("Received pen-down command.");
-          } else if (command.equalsIgnoreCase("print-raw")) {
-              // To be implemented: logic for raw commands
-              Serial.println("Received print-raw command. Not yet implemented.");
-          }
+      } else if (command.equalsIgnoreCase("print-raw")) {
+        // params contains raw G-code program. Execute immediately.
+        Serial.println("Received print-raw command. Executing G-code...");
+        executeRawGCode(params);
+      }
       } else {
           Serial.println("Received command without a comma separator. Ignoring.");
       }
@@ -869,6 +876,66 @@ void resetScreen() {
   lcd.print(": ");
   lcd.setCursor(1, 0);  //move cursor down to row 1 column 0
   cursorPosition = 1;
+}
+
+// ---------------- G-code integration ----------------
+static float gcode_max_x_mm = 0.0f;
+
+// Convert mm to internal step units and draw
+static void gcodeMoveBridge(float x_mm, float y_mm, bool drawing) {
+  // Scaling: based on 1600 units => 36mm (X) and 14mm (Y)
+  // So 1 mm = 1600/36 units (X) and 1600/14 units (Y)
+  const float X_UNITS_PER_MM = 1600.0f / 36.0f; // ≈ 44.444...
+  const float Y_UNITS_PER_MM = 1600.0f / 14.0f; // ≈ 114.2857
+
+  long tx = lroundf(x_mm * X_UNITS_PER_MM);
+  long ty = lroundf(y_mm * Y_UNITS_PER_MM);
+
+  gcode_max_x_mm = max(gcode_max_x_mm, x_mm);
+
+  line((int)tx, (int)ty, drawing);
+}
+
+static void gcodePenBridge(bool down) {
+  if (down) penDown(); else penUp();
+}
+
+void executeRawGCode(const String &program) {
+  // Ensure starting conditions: pen up by default, absolute mode
+  gcodePenBridge(false);
+  // Convert current internal units to mm for parser starting point
+  const float X_MM_PER_UNIT = 36.0f / 1600.0f;
+  const float Y_MM_PER_UNIT = 14.0f / 1600.0f;
+  float startXmm = xpos * X_MM_PER_UNIT;
+  float startYmm = ypos * Y_MM_PER_UNIT;
+
+  gcode_max_x_mm = startXmm;
+
+  GCodeParser parser(gcodeMoveBridge, gcodePenBridge, startXmm, startYmm);
+  parser.setAbsolute(true);
+  parser.setPenState(false);
+
+  // Parse and execute
+  parser.process(program);
+
+  // After completion, update the global position to parser state
+  const float X_UNITS_PER_MM = 1600.0f / 36.0f;
+  const float Y_UNITS_PER_MM = 1600.0f / 14.0f;
+  xpos = (int)lroundf(parser.curX() * X_UNITS_PER_MM);
+  ypos = (int)lroundf(parser.curY() * Y_UNITS_PER_MM);
+
+  // Move cursor to max printed X + 5mm, keeping current Y
+  float targetXmm = gcode_max_x_mm + 5.0f;
+  long targetX = (long)lroundf(targetXmm * X_UNITS_PER_MM);
+  line((int)targetX, ypos, false);
+  xpos = targetX;
+
+  // Then navigate Y axis to Y = 0 (origin), pen up
+  line(xpos, 0, false);
+  ypos = 0;
+
+  // Optionally release motors
+  releaseMotors();
 }
 #pragma endregion FUNCTIONS
 
