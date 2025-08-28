@@ -94,7 +94,7 @@ int xPins[4] = {6, 8, 7, 9};  // pins for x-motor coils
 int yPins[4] = {2, 4, 3, 5};    // pins for y-motor coils
 
 //Servo
-const int SERVO_PIN  = 13;
+const int SERVO_PIN  = D13;
 Servo servo;
 int angle = 30; // the current angle of servo motor
 
@@ -207,12 +207,81 @@ const uint8_t vector[63][14] = {
 #pragma endregion CHARACTER VECTORS
 
 #pragma region BT values
-#define SERVICE_UUID        "..."
-#define CHARACTERISTIC_UUID "..."
+#define SERVICE_UUID        "12345678-1234-5678-1234-56789abcdef0"
+#define CHARACTERISTIC_UUID "87654321-4321-8765-4321-87654321fedc"
 
 String BTtext = "";
-
 #define BTDeviceName "LABEL MAKER"
+
+NimBLEServer* pServer = NULL;
+NimBLECharacteristic* pCharacteristic = NULL;
+bool deviceConnected = false;
+
+class MyServerCallbacks : public NimBLEServerCallbacks {
+    void onConnect(NimBLEServer* pServer) {
+        deviceConnected = true;
+        Serial.println("Device connected via BLE");
+    }
+
+    void onDisconnect(NimBLEServer* pServer) {
+        deviceConnected = false;
+        Serial.println("Device disconnected via BLE. Restarting advertising...");
+    }
+};
+
+void readBTCmd() {
+  std::string value = pCharacteristic->getValue();
+  if (value.length() > 0) {
+      BTtext = String(value.c_str());
+      Serial.print("Received raw value: ");
+      for (int i = 0; i < value.length(); i++) {
+          Serial.print(value[i]);
+      }
+      Serial.println();
+
+      Serial.print("Received BTtext string: ");
+      Serial.println(BTtext);
+
+      // Command parsing
+      int firstComma = BTtext.indexOf(',');
+      if (firstComma != -1) {
+          String command = BTtext.substring(0, firstComma);
+          String params = BTtext.substring(firstComma + 1);
+
+          if (command.equalsIgnoreCase("print-text")) {
+              text = params;
+              currentState = Printing;
+              prevState = PrintConfirmation;
+              Serial.println("Received print-text command. Starting print.");
+          } else if (command.equalsIgnoreCase("cancel")) {
+              text = "";
+              currentState = MainMenu;
+              prevState = Printing;
+              Serial.println("Received cancel command. Returning to main menu.");
+          } else if (command.equalsIgnoreCase("pen-up")) {
+              penUp();
+              Serial.println("Received pen-up command.");
+          } else if (command.equalsIgnoreCase("pen-down")) {
+              penDown();
+              Serial.println("Received pen-down command.");
+          } else if (command.equalsIgnoreCase("print-raw")) {
+              // To be implemented: logic for raw commands
+              Serial.println("Received print-raw command. Not yet implemented.");
+          }
+      } else {
+          Serial.println("Received command without a comma separator. Ignoring.");
+      }
+
+      pCharacteristic->setValue("");
+  }
+}
+
+class MyCallbacks : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* pCharacteristic) {
+        Serial.println("onWrite callback triggered.");
+        readBTCmd();
+    }
+};
 
 #pragma endregion BT values
 
@@ -221,9 +290,31 @@ String BTtext = "";
 //////////////////////////////////////////////////
 #pragma region SETUP
 void bleSetup() {
-  
+    NimBLEDevice::init(BTDeviceName);
+    pServer = NimBLEDevice::createServer();
+    pServer->setCallbacks(new MyServerCallbacks());
+    NimBLEService* pService = pServer->createService(SERVICE_UUID);
+    // Check if the service was created successfully
+    if (pService == NULL) {
+        Serial.println("Failed to create BLE service!");
+        return; // Exit setup if failed
+    }
+    pCharacteristic = pService->createCharacteristic(
+        CHARACTERISTIC_UUID,
+        NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY
+    );
+    // Check if the characteristic was created successfully
+    if (pCharacteristic == NULL) {
+        Serial.println("Failed to create BLE characteristic!");
+        return; // Exit setup if failed
+    }
+    pCharacteristic->setCallbacks(new MyCallbacks());
+    pService->start();
+    NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
+    pAdvertising->addServiceUUID(pService->getUUID());
+    pAdvertising->start();
+    Serial.println("BLE advertising started.");
 }
-
 
 void setup() {
   lcd.init();
@@ -231,7 +322,7 @@ void setup() {
 
   lcd.setCursor(0, 0);
   lcd.print(INIT_MSG);  // print start up message
-
+  bleSetup();
   pinMode(LED_BUILTIN, OUTPUT);
   analogReadResolution(10);
 
@@ -257,7 +348,7 @@ void setup() {
   releaseMotors();
   lcd.clear();
 
-  bleSetup();
+  
 }
 #pragma endregion SETUP
 
@@ -293,7 +384,31 @@ void loop() {
   // Serial.print(" / ");
   // Serial.println(joyRight);
 
-  
+  // Restart advertising if disconnected
+  if (NimBLEDevice::getServer()->getConnectedCount() < 1) {
+    if (!NimBLEDevice::getAdvertising()->isAdvertising()) {
+      NimBLEDevice::startAdvertising();
+      Serial.println("Restarting BLE advertising");
+    }
+  }
+
+  readBTCmd();
+
+  // Handle BT commands if a new command has been received
+  if (BTtext.length() > 0) {
+    // Process BT command (already handled in MyCallbacks::onWrite)
+    // Clear the BTtext variable to indicate command has been processed
+    Serial.println("BT Value:");
+    Serial.println(BTtext);
+    BTtext = "";
+  }
+
+  if (text.length() > 0) {
+    // Process BT command (already handled in MyCallbacks::onWrite)
+    // Clear the BTtext variable to indicate command has been processed
+    Serial.println("Value:");
+    Serial.println(text);
+  }
 
   switch (currentState) {  //state machine that determines what to do with the input controls based on what mode the device is in
 
@@ -461,6 +576,8 @@ void loop() {
       if (prevState == PrintConfirmation) {
         lcd.setCursor(0, 0);
         lcd.print(PRINTING);  //update screen
+        lcd.setCursor(0, 1);
+        lcd.print(text);
       }
 
       // ----------------------------------------------- plot text
@@ -757,4 +874,4 @@ void resetScreen() {
 
 //////////////////////////////////////////////////
                //  END CODE  //
-//////////////////////////////////////////////////
+//////////////////////////////////////////////////

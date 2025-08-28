@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Label Maker Client</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+        <h1 class="text-2xl font-bold mb-6 text-center">Label Maker Control</h1>
+        <div class="flex flex-col space-y-4">
+            <button id="connectButton" class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                Connect to Device
+            </button>
+            <div class="flex items-center space-x-2">
+                <input id="commandInput" type="text" placeholder="e.g., print-text,Hello" class="flex-grow px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow" />
+                <button id="sendButton" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-green-700 transition-colors" disabled>
+                    Send
+                </button>
+            </div>
+            <button id="disconnectButton" class="bg-red-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-red-700 transition-colors" disabled>
+                Disconnect
+            </button>
+        </div>
+        <div id="status" class="mt-6 p-4 bg-gray-100 rounded-lg text-sm text-gray-700">
+            Status: Ready to connect.
+        </div>
+    </div>
+
+    <script>
+        // Global variables to hold the device and characteristic
+        let labelMakerDevice = null;
+        let labelMakerCharacteristic = null;
+
+        // UUIDs from the Arduino code
+        const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
+        const CHARACTERISTIC_UUID = '87654321-4321-8765-4321-87654321fedc';
+
+        // Get UI elements
+        const connectButton = document.getElementById('connectButton');
+        const sendButton = document.getElementById('sendButton');
+        const disconnectButton = document.getElementById('disconnectButton');
+        const commandInput = document.getElementById('commandInput');
+        const statusDiv = document.getElementById('status');
+
+        /**
+         * Updates the status message on the UI.
+         * @param {string} message The message to display.
+         * @param {string} color The Tailwind CSS text color class.
+         */
+        const updateStatus = (message, color = 'text-gray-700') => {
+            statusDiv.textContent = `Status: ${message}`;
+            statusDiv.className = `mt-6 p-4 bg-gray-100 rounded-lg text-sm ${color}`;
+        };
+
+        /**
+         * Connects to the Bluetooth device.
+         */
+        const connectDevice = async () => {
+            try {
+                updateStatus('Connecting...');
+                
+                // Request a Bluetooth device
+                labelMakerDevice = await navigator.bluetooth.requestDevice({
+                    // filters: [{ namePrefix: 'LABEL' }],
+                    acceptAllDevices: true,
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                // Add event listener for device disconnects
+                labelMakerDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+                // Connect to the GATT server
+                updateStatus('Connecting to GATT server...');
+                const server = await labelMakerDevice.gatt.connect();
+
+                // Get the primary service
+                updateStatus('Getting service...');
+                const service = await server.getPrimaryService(SERVICE_UUID);
+
+                // Get the characteristic
+                updateStatus('Getting characteristic...');
+                labelMakerCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+                updateStatus('Connected successfully!', 'text-green-600');
+                
+                // Enable UI elements after successful connection
+                connectButton.disabled = true;
+                sendButton.disabled = false;
+                disconnectButton.disabled = false;
+
+            } catch (error) {
+                updateStatus(`Connection failed: ${error}`, 'text-red-600');
+                console.error('Connection error:', error);
+            }
+        };
+
+        /**
+         * Sends a command to the characteristic.
+         */
+        const sendCommand = async () => {
+            const command = commandInput.value.trim();
+            if (!labelMakerCharacteristic || !command) {
+                updateStatus('Not connected or no command to send.', 'text-red-600');
+                return;
+            }
+
+            try {
+                updateStatus('Sending command...');
+                // Convert the string to a UTF-8 encoded byte array
+                const encoder = new TextEncoder();
+                const data = encoder.encode(command);
+                
+                // Write the data to the characteristic
+                await labelMakerCharacteristic.writeValue(data);
+                
+                updateStatus(`Command sent: "${command}"`, 'text-blue-600');
+                commandInput.value = ''; // Clear the input field
+            } catch (error) {
+                updateStatus(`Failed to send command: ${error}`, 'text-red-600');
+                console.error('Send command error:', error);
+            }
+        };
+
+        /**
+         * Disconnects from the device.
+         */
+        const disconnectDevice = () => {
+            if (labelMakerDevice && labelMakerDevice.gatt.connected) {
+                labelMakerDevice.gatt.disconnect();
+                updateStatus('Disconnected.', 'text-gray-700');
+            } else {
+                updateStatus('Device is already disconnected.', 'text-gray-700');
+            }
+        };
+
+        /**
+         * Handler for when the device unexpectedly disconnects.
+         */
+        const onDisconnected = (event) => {
+            updateStatus('Device disconnected.', 'text-red-600');
+            // Reset state
+            labelMakerDevice = null;
+            labelMakerCharacteristic = null;
+            connectButton.disabled = false;
+            sendButton.disabled = true;
+            disconnectButton.disabled = true;
+        };
+
+        // Attach event listeners to buttons
+        connectButton.addEventListener('click', connectDevice);
+        sendButton.addEventListener('click', sendCommand);
+        disconnectButton.addEventListener('click', disconnectDevice);
+    </script>
+</body>
+</html>

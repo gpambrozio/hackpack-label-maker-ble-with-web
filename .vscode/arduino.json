@@ -1,0 +1,8 @@
+{
+    "sketch": "label-maker.ino",
+    "board": "arduino:esp32:nano_nora",
+    "output": "build",
+    "configuration": "default",
+    "programmer": "esptool",
+    "port": "COM3"
+}

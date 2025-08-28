@@ -1,0 +1,9 @@
+{
+  "files.associations": {
+    "*.ino": "cpp"
+  },
+  "arduino.fqbn": "arduino:esp32:nano_nora",
+  "arduino.defaultBaudRate": 115200,
+  // Let the Arduino extension feed precise include paths/defines to C/C++
+  "C_Cpp.default.configurationProvider": "vsciot-vscode.vscode-arduino",
+}

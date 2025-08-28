@@ -1,0 +1,103 @@
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "Nano ESP32",
+      "configurationProvider": "vsciot-vscode.vscode-arduino",
+      "defines": [
+        "ARDUINO=10607",
+        "ESP32",
+        "ARDUINO_ARCH_ESP32",
+        "ARDUINO_NANO_ESP32",
+        "ARDUINO_BOARD=\"NANO_ESP32\"",
+        "ARDUINO_VARIANT=\"arduino_nano_nora\""
+      ],
+      "includePath": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/**",
+        "${env:LOCALAPPDATA}/Arduino15/libraries/**",
+        "${env:LOCALAPPDATA}/Arduino15/libraries/**/src/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/**/hardware/**/**/cores/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/**/hardware/**/**/variants/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/**/hardware/**/**/libraries/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/**/hardware/**/**/libraries/**/src/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/**/hardware/**/**/tools/**/include/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/**/hardware/**/**/tools/**/components/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/**/hardware/**/**/tools/sdk/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/**/tools/**/include/**",
+        // "${env:USERPROFILE}/Documents/Arduino/libraries/**",
+        "${env:USERPROFILE}/Documents/Arduino/libraries/**/src/**",
+        "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/**",
+        "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/**/src/**",
+        // "${env:ProgramFiles(x86)}/Arduino/libraries/**",
+        // Explicit includes for commonly used libraries
+        // "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/LiquidCrystal_I2C",
+        // "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/ezButton/src",
+        // "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/ESP32Servo/src",
+        // "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/NimBLE-Arduino/src",
+        // "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/NimBLE-Arduino/src/nimble"
+      ],
+      "browse": {
+        "path": [
+          "${workspaceFolder}",
+          "${workspaceFolder}/**",
+          "${env:LOCALAPPDATA}/Arduino15/packages/**",
+          "${env:LOCALAPPDATA}/Arduino15/libraries/**"
+        ],
+        "limitSymbolsToIncludedHeaders": true
+      },
+      "compilerPath": "C:/Users/riven/AppData/Local/Arduino15/packages/esp32/tools/s3-gcc/2021r2-p5/bin/xtensa-esp32s3-elf-g++.exe",
+      "cStandard": "c11",
+      "cppStandard": "gnu++17",
+      "intelliSenseMode": "windows-gcc-x64",
+      "forcedInclude": [
+        "C:/Users/riven/AppData/Local/Arduino15/packages/arduino/hardware/esp32/2.0.18-arduino.5/cores/esp32/Arduino.h",
+        "C:/Users/riven/AppData/Local/Arduino15/packages/arduino/hardware/esp32/2.0.18-arduino.5/variants/arduino_nano_nora/pins_arduino.h"
+      ]
+    },
+    {
+      "name": "AVR (Uno/Mega)",
+      "configurationProvider": "vsciot-vscode.vscode-arduino",
+      "defines": [
+        "ARDUINO=10607",
+        "ARDUINO_ARCH_AVR"
+      ],
+      "includePath": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/**",
+        "${env:LOCALAPPDATA}/Arduino15/libraries/**",
+        "${env:LOCALAPPDATA}/Arduino15/libraries/**/src/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/**/hardware/avr/**/cores/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/**/hardware/avr/**/variants/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/**/hardware/avr/**/libraries/**",
+        "${env:LOCALAPPDATA}/Arduino15/packages/**/hardware/avr/**/libraries/**/src/**",
+        "${env:USERPROFILE}/Documents/Arduino/libraries/**",
+        "${env:USERPROFILE}/Documents/Arduino/libraries/**/src/**",
+        "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/**",
+        "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/**/src/**",
+        "${env:ProgramFiles(x86)}/Arduino/libraries/**",
+        // Explicit includes for commonly used libraries
+        // "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/LiquidCrystal_I2C",
+        // "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/ezButton/src",
+        // "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/ESP32Servo/src",
+        // "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/NimBLE-Arduino/src",
+        // "${env:USERPROFILE}/OneDrive/Dokumenty/Arduino/libraries/NimBLE-Arduino/src/nimble"
+      ],
+      "browse": {
+        "path": [
+          "${workspaceFolder}",
+          "${env:LOCALAPPDATA}/Arduino15/packages/**",
+          "${env:LOCALAPPDATA}/Arduino15/libraries/**"
+        ],
+        "limitSymbolsToIncludedHeaders": true
+      },
+      "compilerPath": "C:/Users/riven/AppData/Local/Arduino15/packages/arduino/tools/avr-gcc/7.3.0-atmel3.6.1-arduino7/bin/avr-g++.exe",
+      "cStandard": "c11",
+      "cppStandard": "gnu++17",
+      "intelliSenseMode": "windows-gcc-x86",
+      "forcedInclude": [
+        "C:/Users/riven/AppData/Local/Arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino/Arduino.h"
+      ]
+    }
+  ]
+}
