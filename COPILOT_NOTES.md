@@ -25,7 +25,7 @@ On write, firmware reads and clears the characteristic; missing comma is ignored
   - X: 1600 units = 36 mm → X_UNITS_PER_MM = 1600/36 ≈ 44.444…
   - Y: 1600 units = 14 mm → Y_UNITS_PER_MM = 1600/14 ≈ 114.2857
 - Origin (0,0) is bottom-left of the printable area.
-- Assumed printable limits (not strictly enforced yet): Max X = 260 mm, Max Y = 35 mm.
+- Assumed printable limits (not strictly enforced yet): Max X = 260 mm, Max Y = 30 mm.
 - After `print-raw` completes:
   - Cursor advances to `maxPrintedX + 5 mm` (pen up), then Y returns to `0` (pen up).
 
@@ -52,7 +52,8 @@ To extend:
   - Connect/Disconnect
   - Pen Down / Pen Up buttons
   - Text input + “Send Text” → `print-text,<text>`
-  - “Send Sample G-code” → draws an outer rectangle with a centered triangle within 260×35 mm, starting at (0,0).
+  - “Send Sample G-code” → draws within 260×30 mm, starting at (0,0).
+  - Tool thickness slider (0.2–5.0 mm, default 2.0 mm) changes SVG stroke width for preview only.
 - For large programs, consider chunking/streaming (BLE MTU limits).
 
 ## Common tasks

@@ -66,10 +66,15 @@
                 <div class="flex flex-col space-y-2">
                     <div class="flex items-center justify-between">
                         <span class="text-sm font-semibold text-gray-700">Preview (SVG)</span>
-                        <span class="text-xs text-gray-500">Area: 260 × 35 mm</span>
+                        <span class="text-xs text-gray-500">Area: 260 × 30 mm</span>
                     </div>
-                    <div class="border rounded-lg overflow-hidden bg-white">
-                        <svg id="gcodePreview" class="w-full h-[320px]" viewBox="0 0 260 35" preserveAspectRatio="xMidYMid meet"></svg>
+                    <div class="flex items-center gap-2">
+                        <label for="thicknessSlider" class="text-xs text-gray-600">Tool thickness</label>
+                        <input id="thicknessSlider" type="range" min="0.2" max="5" step="0.1" value="2" class="w-40">
+                        <span id="thicknessValue" class="text-xs text-gray-500">2.0 mm</span>
+                    </div>
+                    <div class="border rounded-lg overflow-auto bg-white p-4">
+                        <svg id="gcodePreview" class="overflow-visible" width="260mm" height="30mm" viewBox="0 0 260 30" preserveAspectRatio="xMidYMid meet"></svg>
                     </div>
                 </div>
             </div>
@@ -104,6 +109,11 @@
     const gcodeTextarea = document.getElementById('gcodeTextarea');
     const resetToSampleButton = document.getElementById('resetToSampleButton');
     const gcodePreview = document.getElementById('gcodePreview');
+    const thicknessSlider = document.getElementById('thicknessSlider');
+    const thicknessValue = document.getElementById('thicknessValue');
+
+    // Preview stroke width in mm
+    let currentStrokeWidth = 2.0;
 
         /**
          * Updates the status message on the UI.
@@ -172,6 +182,9 @@
                 updateStatus('Sending command...');
                 const encoder = new TextEncoder();
                 const data = encoder.encode(command);
+                if (data.byteLength > 512) {
+                    throw new Error(`Payload ${data.byteLength} exceeds 512 bytes`);
+                }
                 await labelMakerCharacteristic.writeValue(data);
                 updateStatus(`Command sent: "${command.slice(0, 60)}${command.length > 60 ? '…' : ''}"`, 'text-blue-600');
             } catch (error) {
@@ -180,10 +193,38 @@
             }
         };
 
+        // Write a potentially long G-code using chunked protocol
+        const sendGcodeChunked = async (program) => {
+            if (!labelMakerCharacteristic) {
+                updateStatus('Not connected.', 'text-red-600');
+                return;
+            }
+            const encoder = new TextEncoder();
+            const MAX_PAYLOAD = 480; // leave headroom for command and comma
+            try {
+                // begin
+                await writeCommand('print-raw-begin,');
+                // stream chunks
+                let i = 0;
+                while (i < program.length) {
+                    const slice = program.slice(i, i + MAX_PAYLOAD);
+                    // send as print-raw-data,<chunk>
+                    await writeCommand(`print-raw-data,${slice}`);
+                    i += slice.length;
+                }
+                // end
+                await writeCommand('print-raw-end,');
+                updateStatus('G-code sent (chunked).', 'text-green-600');
+            } catch (error) {
+                updateStatus(`Chunked send failed: ${error}`, 'text-red-600');
+                console.error('Chunked send error:', error);
+            }
+        };
+
         // Build a 5cm-wide ruler-like example with X & Y axes, cm and 0.5cm ticks, and numeric labels (as line strokes)
-        // Origin (0,0) is bottom-left. Max area is 260x35 mm; height is capped.
+    // Origin (0,0) is bottom-left. Max area is 260x30 mm; height is capped.
         const buildSampleGcode = () => {
-            const AREA_W = 260, AREA_H = 35;
+            const AREA_W = 260, AREA_H = 30;
             const MARGIN = 0; // no margin
             const L = MARGIN, B = MARGIN;
             const WIDTH = 50; // 5cm
@@ -266,7 +307,12 @@
                     const n = Math.floor(j / 10);
                     if (n <= 9) {
                         const dx = L + len + GAP;
-                        const dy = y - DIGIT_H / 2; // vertically center on tick
+                        // vertically center on tick, but keep fully within area height
+                        let dy = y - DIGIT_H / 2;
+                        const dyMin = B;
+                        const dyMax = B + HEIGHT - DIGIT_H;
+                        if (dy < dyMin) dy = dyMin;
+                        if (dy > dyMax) dy = dyMax;
                         drawDigit(n, dx, dy);
                     }
                 }
@@ -276,9 +322,9 @@
         };
 
         // --- G-code preview renderer (SVG) ---
-        const MAX_X = 260, MAX_Y = 35;
+    const MAX_X = 260, MAX_Y = 30;
         const clearNode = (node) => { while (node.firstChild) node.removeChild(node.firstChild); };
-        const parseAndRenderGcode = (program) => {
+    const parseAndRenderGcode = (program) => {
             clearNode(gcodePreview);
 
             // Draw area border
@@ -363,7 +409,7 @@
                 p.setAttribute('d', path);
                 p.setAttribute('fill', 'none');
                 p.setAttribute('stroke', '#7c3aed');
-                p.setAttribute('stroke-width', '0.6');
+                p.setAttribute('stroke-width', String(currentStrokeWidth));
                 p.setAttribute('stroke-linecap', 'round');
                 p.setAttribute('stroke-linejoin', 'round');
                 gg.appendChild(p);
@@ -379,6 +425,10 @@
                 updateStatus('Enter some text to print.', 'text-red-600');
                 return;
             }
+            if (txt.length > 400) {
+                updateStatus('Text too long for single BLE write. Keep under ~400 chars.', 'text-red-600');
+                return;
+            }
             writeCommand(`print-text,${txt}`);
             labelTextInput.value = '';
         };
@@ -388,7 +438,12 @@
                 updateStatus('No G-code to send.', 'text-red-600');
                 return;
             }
-            writeCommand(`print-raw,${g}`);
+            // decide chunking based on size
+            if (g.length > 420) {
+                sendGcodeChunked(g);
+            } else {
+                writeCommand(`print-raw,${g}`);
+            }
         };
         const resetToSample = () => {
             const g = buildSampleGcode();
@@ -433,6 +488,12 @@
         disconnectButton.addEventListener('click', disconnectDevice);
         resetToSampleButton.addEventListener('click', resetToSample);
         gcodeTextarea.addEventListener('input', (e) => parseAndRenderGcode(e.target.value));
+        thicknessSlider.addEventListener('input', (e) => {
+            const v = parseFloat(e.target.value);
+            currentStrokeWidth = isFinite(v) ? v : 2.0;
+            thicknessValue.textContent = `${currentStrokeWidth.toFixed(1)} mm`;
+            parseAndRenderGcode(gcodeTextarea.value || '');
+        });
 
         // Initialize textarea with sample and render preview
         (function initSample() {

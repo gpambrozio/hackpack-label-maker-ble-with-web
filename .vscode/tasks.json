@@ -1,34 +1,34 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "Arduino Nano Esp32: Compile",
-      "type": "shell",
-      "command": "arduino-cli",
-      "args": [
-        "compile",
-        "--fqbn",
-        "arduino:esp32:nano_nora",
-        "--warnings",
-        "default",
-        "--export-binaries",
-        "."
-      ],
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "Arduino Nano Esp32: Upload",
-      "type": "shell",
-      "command": "arduino-cli",
-      "args": [
-        "upload",
-        "--fqbn",
-        "arduino:esp32:nano_nora",
-        "."
-      ],
-      "dependsOn": "Arduino Nano Esp32: Compile",
-      "problemMatcher": []
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Arduino Nano Esp32: Compile",
+			"type": "shell",
+			"command": "arduino-cli",
+			"args": [
+				"compile",
+				"--fqbn",
+				"arduino:esp32:nano_nora",
+				"--warnings",
+				"default",
+				"--export-binaries",
+				"."
+			],
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "Arduino Nano Esp32: Upload",
+			"type": "shell",
+			"command": "arduino-cli",
+			"args": [
+				"upload",
+				"--fqbn",
+				"arduino:esp32:nano_nora",
+				"."
+			],
+			"dependsOn": "Arduino Nano Esp32: Compile",
+			"problemMatcher": []
+		}
+	]
 }

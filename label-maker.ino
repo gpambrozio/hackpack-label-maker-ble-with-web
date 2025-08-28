@@ -223,6 +223,10 @@ NimBLEServer* pServer = NULL;
 NimBLECharacteristic* pCharacteristic = NULL;
 bool deviceConnected = false;
 
+// Chunked G-code transfer state (for BLE 512-byte write limit)
+static String gcode_chunk_buffer;
+static bool gcode_chunk_active = false;
+
 class MyServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* pServer) {
         deviceConnected = true;
@@ -248,7 +252,7 @@ void readBTCmd() {
       Serial.print("Received BTtext string: ");
       Serial.println(BTtext);
 
-      // Command parsing
+  // Command parsing
       int firstComma = BTtext.indexOf(',');
       if (firstComma != -1) {
           String command = BTtext.substring(0, firstComma);
@@ -270,11 +274,35 @@ void readBTCmd() {
           } else if (command.equalsIgnoreCase("pen-down")) {
               penDown();
               Serial.println("Received pen-down command.");
-      } else if (command.equalsIgnoreCase("print-raw")) {
-        // params contains raw G-code program. Execute immediately.
-        Serial.println("Received print-raw command. Executing G-code...");
-        executeRawGCode(params);
-      }
+          } else if (command.equalsIgnoreCase("print-raw")) {
+            // params contains raw G-code program. Execute immediately.
+            Serial.println("Received print-raw command. Executing G-code...");
+            executeRawGCode(params);
+          } else if (command.equalsIgnoreCase("print-raw-begin")) {
+            // Start chunked transfer
+            Serial.println("Starting chunked G-code transfer");
+            gcode_chunk_buffer = "";
+            gcode_chunk_buffer.reserve(2048); // pre-allocate some space
+            gcode_chunk_active = true;
+          } else if (command.equalsIgnoreCase("print-raw-data")) {
+            // Append chunk to buffer
+            if (gcode_chunk_active) {
+              gcode_chunk_buffer += params;
+            } else {
+              Serial.println("print-raw-data received without begin; ignoring chunk.");
+            }
+          } else if (command.equalsIgnoreCase("print-raw-end")) {
+            // End chunked transfer and execute
+            if (gcode_chunk_active) {
+              Serial.print("Executing chunked G-code, size=");
+              Serial.println(gcode_chunk_buffer.length());
+              executeRawGCode(gcode_chunk_buffer);
+            } else {
+              Serial.println("print-raw-end without begin; ignoring.");
+            }
+            gcode_chunk_buffer = "";
+            gcode_chunk_active = false;
+          }
       } else {
           Serial.println("Received command without a comma separator. Ignoring.");
       }
