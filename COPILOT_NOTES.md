@@ -71,3 +71,21 @@ To extend:
 - Vector text plotting is independent of G-code and uses internal `x_scale`/`y_scale`.
 - Stepper speeds set in `setup()`. Don’t push too fast.
 - Servo has small delays; avoid rapid toggles without motion.
+
+## Roadmap / TODO
+- Device status on LCD
+  - Show BLE connection state, printing status, simple progress (e.g., executed lines / total), and error messages.
+  - Add a minimal progress estimator for G-code (count parsed motion blocks).
+- Device → Web status reporting
+  - Add a second BLE characteristic with Notify to push status updates (e.g., `state,progress,pen,x_mm,y_mm,error`).
+  - Web client subscribes and renders a status banner, progress bar, live coordinates, and pen state indicator.
+  - Optional: small log console in the UI for recent device messages.
+- SVG → G-code (web client)
+  - Parse basic SVG elements (path/line/polyline). Flatten curves to line segments with a tolerance slider.
+  - Scale to mm with origin at bottom-left; generate M3/M5 around strokes and G0/G1 moves.
+  - Options: travel optimization (simple nearest-next), bounds clamp to 260×30 mm with warnings, and per-stroke pen-up/down strategy.
+- Safety and polish
+  - Optional firmware-side bounds clamp (260×30 mm) before calling `line()`.
+  - Consider acknowledgements for chunked G-code (acks or simple checksums) to improve robustness.
+  - Persist UI settings (tool thickness, SVG tolerance, clipping) via `localStorage`.
+  - Add a calibration helper: draw a ruler/test pattern and let users tweak scale/offset.
