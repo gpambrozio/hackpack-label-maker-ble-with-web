@@ -187,6 +187,23 @@ MIT License. See the header in `label-maker.ino`.
 
 ---
 
+## TODO: screenshots to create
+
+Place these PNGs in the `.docs/` folder:
+
+- [ ] hero.png
+- [ ] assembled.png
+- [ ] example-label.png
+- [ ] wiring.png
+- [ ] ide-board-port.png
+- [ ] web-connect.png
+- [x] web-ui.png
+- [ ] gcode-rectangle.png
+- [ ] troubleshooting.png
+- [ ] inside-view.png
+
+---
+
 ## Credits
 
 - Original concept and build: CrunchLabs Hackpack “Label Maker” — https://www.crunchlabs.com/products/label

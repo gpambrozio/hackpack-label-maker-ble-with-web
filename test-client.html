@@ -1,91 +1,455 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Label Maker Client</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rubik:wght@400;600;800&display=swap"
+        rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                        display: ['Rubik', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
                     },
+                    colors: {
+                        purpleAccent: '#7c3aed',
+                        panel: '#111213',
+                        panel2: '#17181a',
+                        ebony: '#0b0b0c',
+                        wood1: '#a47148',
+                        wood2: '#8b5e3c',
+                        wood3: '#c18f59',
+                    },
+                    boxShadow: {
+                        glow: '0 0 0 1px rgba(124,58,237,0.4), 0 0 18px rgba(124,58,237,0.25)',
+                        insetSoft: 'inset 0 2px 6px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.03)'
+                    }
                 }
             }
         }
     </script>
     <style>
+        :root {
+            --bg: #0b0b0c;
+            /* deep black, painted plywood */
+            --panel: #111213;
+            --panel-2: #17181a;
+            --accent: #7c3aed;
+            /* purple touches */
+            --wood-1: #a47148;
+            /* warm plywood core */
+            --wood-2: #8b5e3c;
+            --wood-3: #c18f59;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
+            background: radial-gradient(1200px 800px at 15% 10%, rgba(124, 58, 237, .12), transparent 60%),
+                radial-gradient(1000px 700px at 85% 90%, rgba(124, 58, 237, .1), transparent 55%),
+                var(--bg);
+            color: var(--text);
+        }
+
+        /* Device "case" with wood rails */
+        .device-case {
+            position: relative;
+            background: linear-gradient(180deg, var(--panel), var(--panel-2));
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06);
+            overflow: visible;
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 2rem);
+            /* fill screen minus body padding */
+            isolation: isolate;
+        }
+
+        .device-case::before,
+        .device-case::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        /* subtle brushed effect */
+        .device-case::before {
+            background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .03), rgba(255, 255, 255, .03) 2px, transparent 2px, transparent 6px);
+            mix-blend-mode: overlay;
+            opacity: .3;
+        }
+
+        /* wood rails */
+        .wood-rails {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .wood-rail {
+            position: absolute;
+            height: 20px;
+            left: -16px;
+            right: -16px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), inset 0 -1px 0 rgba(0, 0, 0, .55), 0 2px 8px rgba(0, 0, 0, .6);
+        }
+
+        .wood-rail.top {
+            top: 10px;
+        }
+
+        .wood-rail.bottom {
+            bottom: 10px;
+        }
+
+        .wood-grain {
+            background:
+                linear-gradient(0deg, rgba(0, 0, 0, .15), transparent 20%, transparent 80%, rgba(0, 0, 0, .25)),
+                repeating-linear-gradient(0deg, var(--wood-2) 0px, var(--wood-2) 9px, var(--wood-1) 9px, var(--wood-1) 16px, var(--wood-3) 16px, var(--wood-3) 27px);
+        }
+
+        /* Engraved label style */
+        .engraved {
+            font-family: 'Rubik', sans-serif;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #dbc7b6;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35), 0 -1px 0 rgba(0, 0, 0, 0.6);
+            mix-blend-mode: normal;
+        }
+
+        /* Purple screws (decorative) */
+        .screw {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #bca6ff, #7c3aed 55%, #4c1d95 90%);
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, .25), 0 2px 8px rgba(124, 58, 237, .35);
+            position: absolute;
+        }
+
+        /* Button styling */
+        .btn {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            border-radius: 0;
+            padding: .8rem 1rem;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(180deg, rgba(139, 92, 246, .95), rgba(109, 40, 217, .95));
+            box-shadow: 0 8px 22px rgba(124, 58, 237, .35), 0 0 0 1px rgba(124, 58, 237, .35), inset 0 1px 0 rgba(255, 255, 255, .06);
+            transition: transform .08s ease, box-shadow .2s ease, filter .2s ease;
+        }
+
+        .btn:hover {
+            box-shadow: 0 10px 26px rgba(124, 58, 237, .45), 0 0 0 1px rgba(124, 58, 237, .45);
+            filter: saturate(1.06);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn[disabled] {
+            opacity: .5;
+            filter: grayscale(.2);
+            cursor: not-allowed;
+        }
+
+        .btn-sm {
+            padding: .55rem .75rem;
+            font-size: .875rem;
+            gap: .4rem;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(180deg, rgba(71, 85, 105, .6), rgba(51, 65, 85, .6));
+            backdrop-filter: blur(4px);
+            box-shadow: 0 8px 22px rgba(2, 6, 23, .45), 0 0 0 1px rgba(148, 163, 184, .25), inset 0 1px 0 rgba(255, 255, 255, .05);
+        }
+
+        /* Inputs */
+        .input {
+            background: #0f1113;
+            border: 1px solid rgba(148, 163, 184, .25);
+            color: #e5e7eb;
+            border-radius: 0;
+            padding: .75rem .9rem;
+            outline: none;
+            transition: border-color .2s ease, box-shadow .2s ease;
+        }
+
+        .input:focus {
+            border-color: rgba(124, 58, 237, .8);
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, .25);
+        }
+
+        /* Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            width: 100%;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 6px;
+            background: linear-gradient(90deg, rgba(124, 58, 237, .8), rgba(124, 58, 237, .35));
+            border-radius: 999px;
+        }
+
+        input[type="range"]::-moz-range-track {
+            height: 6px;
+            background: linear-gradient(90deg, rgba(124, 58, 237, .8), rgba(124, 58, 237, .35));
+            border-radius: 999px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: radial-gradient(circle at 30% 30%, #bca6ff, #7c3aed 55%, #4c1d95 90%);
+            border-radius: 50%;
+            margin-top: -6px;
+            box-shadow: 0 2px 10px rgba(124, 58, 237, .5);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: radial-gradient(circle at 30% 30%, #bca6ff, #7c3aed 55%, #4c1d95 90%);
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 2px 10px rgba(124, 58, 237, .5);
+        }
+
+        /* Preview frame */
+        .preview-frame {
+            position: relative;
+            background: #0f0f10;
+            border-radius: 0;
+            padding: 14px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), inset 0 -1px 0 rgba(0, 0, 0, .6), 0 16px 40px rgba(0, 0, 0, .55);
+        }
+
+        /* Purple tape surface behind SVG */
+        .tape-surface {
+            padding: 10px;
+            background:
+                linear-gradient(180deg, rgba(92, 39, 211, .35), rgba(92, 39, 211, .35)),
+                repeating-linear-gradient(135deg, rgba(124, 58, 237, .25) 0px, rgba(124, 58, 237, .25) 6px, rgba(76, 29, 149, .25) 6px, rgba(76, 29, 149, .25) 12px);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), inset 0 -1px 0 rgba(0, 0, 0, .45);
+        }
+
+        /* LCD-style status */
+        .lcd {
+            background: linear-gradient(180deg, #1d3b63, #0f2742);
+            color: #d6f0ff;
+            border: 1px solid #0a1d33;
+            box-shadow: inset 0 1px 6px rgba(0, 0, 0, .6), 0 1px 0 rgba(255, 255, 255, .05);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            letter-spacing: 0.04em;
+            text-transform: none;
+            padding: .75rem 1rem;
+        }
+
+        /* Logo cutout: wooden fill inside text only */
+        .logo-cutout {
+            font-family: 'Rubik', sans-serif;
+            font-weight: 800;
+            font-size: 1.25rem;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            background:
+                linear-gradient(0deg, rgba(0, 0, 0, .15), transparent 20%, transparent 80%, rgba(0, 0, 0, .25)),
+                repeating-linear-gradient(0deg, var(--wood-2) 0px, var(--wood-2) 9px, var(--wood-1) 9px, var(--wood-1) 16px, var(--wood-3) 16px, var(--wood-3) 27px);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            /* text-shadow: 0 1px 0 rgba(255, 255, 255, .18), 0 -1px 0 rgba(0, 0, 0, .65); */
+        }
+
+        /* Tape-style tabs */
+        .tabs {
+            display: flex;
+            gap: .5rem;
+            align-items: center;
+        }
+
+        .tab {
+            user-select: none;
+            cursor: pointer;
+            border: 1px solid rgba(148, 163, 184, .25);
+            padding: .6rem .9rem;
+            color: #e5e7eb;
+            background: linear-gradient(180deg, rgba(30, 41, 59, .55), rgba(15, 23, 42, .45));
+            box-shadow: 0 1px 0 rgba(255, 255, 255, .06) inset, 0 6px 16px rgba(0, 0, 0, .45);
+            backdrop-filter: blur(4px);
+        }
+
+        .tab:hover {
+            filter: saturate(1.05);
+        }
+
+        .tab.active {
+            color: #fff;
+            border-color: rgba(124, 58, 237, .6);
+            background:
+                linear-gradient(180deg, rgba(92, 39, 211, .55), rgba(92, 39, 211, .55)),
+                repeating-linear-gradient(135deg, rgba(124, 58, 237, .25) 0px, rgba(124, 58, 237, .25) 6px, rgba(76, 29, 149, .25) 6px, rgba(76, 29, 149, .25) 12px);
+            box-shadow: 0 0 0 1px rgba(124, 58, 237, .35), 0 10px 24px rgba(124, 58, 237, .25);
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
-    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-5xl">
-        <h1 class="text-2xl font-bold mb-6 text-center">Label Maker Control</h1>
-        <div class="flex flex-col space-y-4">
-            <button id="connectButton" class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                Connect to Device
-            </button>
 
-            <!-- Pen Controls -->
-            <div class="grid grid-cols-2 gap-3">
-                <button id="penDownButton" class="bg-amber-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-amber-700 transition-colors" disabled>
-                    Pen Down
+<body class="min-h-screen p-4">
+    <div class="w-full device-case p-6 md:p-8">
+        <div class="wood-rails" aria-hidden="true">
+            <div class="wood-rail top wood-grain"></div>
+            <div class="wood-rail bottom wood-grain"></div>
+        </div>
+
+        <!-- Top nameplate -->
+        <div class="w-fit mb-6 relative z-10 px-4 py-2">
+            <span class="logo-cutout">Label Maker</span>
+
+            <!-- Decorative purple joystick/screws cluster -->
+            <div class="absolute w-full h-full top-0 left-0">
+                <div class="screw" style="left:0; top:0"></div>
+                <div class="screw" style="right:0; top:0"></div>
+                <div class="screw" style="left:0; bottom:0"></div>
+                <div class="screw" style="right:0; bottom:0"></div>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="relative z-10 mb-4 flex flex-wrap items-center gap-2">
+            <div class="flex items-center gap-2">
+                <button id="connectButton" class="btn btn-sm">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 12h3m12 0h3M7 12a5 5 0 0110 0" stroke="white" stroke-width="2"
+                            stroke-linecap="round" />
+                    </svg>
+                    Connect
                 </button>
-                <button id="penUpButton" class="bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-slate-700 transition-colors" disabled>
-                    Pen Up
+                <button id="disconnectButton" class="btn btn-secondary btn-sm" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 12h6m0 0l-3-3m3 3l-3 3M14 6h4a2 2 0 012 2v8a2 2 0 01-2 2h-4" stroke="white"
+                            stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    Disconnect
                 </button>
             </div>
-
-            <!-- Print Text -->
-            <div class="flex items-center space-x-2">
-                <input id="labelText" type="text" placeholder="Enter label text" class="w-full max-w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow" />
-                <button id="sendTextButton" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-green-700 transition-colors" disabled>
-                    Send Text
-                </button>
-            </div>
-
-            <!-- G-code editor + preview -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="flex flex-col space-y-2">
-                    <label for="gcodeTextarea" class="text-sm font-semibold text-gray-700">G-code (mm, origin at bottom-left)</label>
-                    <textarea id="gcodeTextarea" rows="12" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-sm" placeholder="Enter G-code here"></textarea>
-                    <div class="flex items-center gap-2">
-                        <button id="sendSampleGcodeButton" class="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-purple-700 transition-colors" disabled>
-                            Send G-code
-                        </button>
-                        <button id="resetToSampleButton" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors" type="button">
-                            Reset to Sample
-                        </button>
-                    </div>
-                </div>
-                <div class="flex flex-col space-y-2">
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-semibold text-gray-700">Preview (SVG)</span>
-                        <span class="text-xs text-gray-500">Area: 260 × 30 mm</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <label for="thicknessSlider" class="text-xs text-gray-600">Tool thickness</label>
-                        <input id="thicknessSlider" type="range" min="0.2" max="5" step="0.1" value="2" class="w-40">
-                        <span id="thicknessValue" class="text-xs text-gray-500">2.0 mm</span>
-                    </div>
-                    <div class="border rounded-lg overflow-auto bg-white p-4">
-                        <svg id="gcodePreview" class="overflow-visible" width="260mm" height="30mm" viewBox="0 0 260 30" preserveAspectRatio="xMidYMid meet"></svg>
-                    </div>
+            <div class="ml-auto">
+                <div id="status" class="lcd text-xs sm:text-sm">
+                    Status: Ready to connect.
                 </div>
             </div>
+        </div>
 
-            <button id="disconnectButton" class="bg-red-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-red-700 transition-colors" disabled>
-                Disconnect
-            </button>
+        <!-- Main content (tabs + sections) -->
+        <div class="relative z-10 flex flex-col gap-3 flex-1 min-h-0">
+            <div class="tabs">
+                <button id="tabGcode" class="tab active">G-code</button>
+                <button id="tabText" class="tab">Text</button>
+                <button id="tabRaw" class="tab">Raw</button>
+            </div>
+
+            <div class="flex-1 min-h-0 overflow-auto">
+                <!-- Text section -->
+                <section id="sectionText" class="relative z-10 space-y-3 h-full hidden">
+                    <div class="space-y-2">
+                        <label class="engraved text-sm opacity-80">Text to plot</label>
+                        <div class="flex gap-2">
+                            <input id="labelText" type="text" placeholder="Enter label text" class="input w-full" maxlength="12" />
+                            <button id="sendTextButton" class="btn btn-sm" disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                    xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M22 2L11 13" stroke="white" stroke-width="2" />
+                                    <path d="M22 2l-7 20-4-9-9-4 20-7z" stroke="white" stroke-width="2" fill="none" />
+                                </svg>
+                                Send
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- G-code section -->
+                <section id="sectionGcode" class="relative z-10 space-y-3 h-full">
+                    <div class="space-y-2">
+                        
+                        <div class="engraved text-sm opacity-80">G-Code Preview</div>
+
+                        <div class="flex items-center gap-3 max-w-md">
+                            <label for="thicknessSlider" class="text-xs text-slate-300">Tool thickness</label>
+                            <input id="thicknessSlider" type="range" min="0.2" max="5" step="0.1" value="2"
+                                class="w-44">
+                            <span id="thicknessValue" class="text-xs text-slate-400">2.0 mm</span>
+                            <span class="text-xs text-slate-400">Area: 260 × 30 mm</span>
+                        </div>
+                        <div class="preview-frame">
+                            <div class="tape-surface"
+                                style="overflow:hidden; width: 100%; max-width: 260mm; aspect-ratio: 260/34;">
+                                <div class="relative">
+                                    <svg id="gcodePreview" class="overflow-visible"
+                                        style="width: 100%; max-width: 260mm; aspect-ratio: 260/30; display:block;"
+                                        viewBox="0 0 260 30" preserveAspectRatio="xMidYMid meet"></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label for="gcodeTextarea" class="engraved text-sm opacity-80">G-code (mm, origin at
+                            bottom-left)</label>
+                        <textarea id="gcodeTextarea" rows="12" class="input w-full font-mono text-sm"
+                            placeholder="Enter G-code here"></textarea>
+                        <div class="flex items-center gap-2">
+                            <button id="sendSampleGcodeButton" class="btn btn-sm" disabled>Send G-code</button>
+                            <button id="resetToSampleButton" class="btn btn-secondary btn-sm">Reset to Sample</button>
+                        </div>
+                    </div>
+                    
+                </section>
+
+                <!-- Raw section -->
+                <section id="sectionRaw" class="relative z-10 space-y-3 h-full hidden">
+                    <div class="flex items-center gap-2">
+                        <button id="penDownButton" class="btn btn-sm" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M6 18h12M8 14l8-8 2 2-8 8H8v-2z" stroke="white" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            Pen Down
+                        </button>
+                        <button id="penUpButton" class="btn btn-secondary btn-sm" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path d="M6 18h12M16 10l-2-2-6 6v2h2l6-6z" stroke="white" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            Pen Up
+                        </button>
+                    </div>
+                </section>
+            </div>
         </div>
-        <div id="status" class="mt-6 p-4 bg-gray-100 rounded-lg text-sm text-gray-700">
-            Status: Ready to connect.
-        </div>
+
+        <!-- Status now lives in toolbar -->
     </div>
 
     <script>
@@ -98,22 +462,22 @@
         const CHARACTERISTIC_UUID = '87654321-4321-8765-4321-87654321fedc';
 
         // Get UI elements
-    const connectButton = document.getElementById('connectButton');
-    const penDownButton = document.getElementById('penDownButton');
-    const penUpButton = document.getElementById('penUpButton');
-    const sendTextButton = document.getElementById('sendTextButton');
-    const sendSampleGcodeButton = document.getElementById('sendSampleGcodeButton');
-    const disconnectButton = document.getElementById('disconnectButton');
-    const labelTextInput = document.getElementById('labelText');
-    const statusDiv = document.getElementById('status');
-    const gcodeTextarea = document.getElementById('gcodeTextarea');
-    const resetToSampleButton = document.getElementById('resetToSampleButton');
-    const gcodePreview = document.getElementById('gcodePreview');
-    const thicknessSlider = document.getElementById('thicknessSlider');
-    const thicknessValue = document.getElementById('thicknessValue');
+        const connectButton = document.getElementById('connectButton');
+        const penDownButton = document.getElementById('penDownButton');
+        const penUpButton = document.getElementById('penUpButton');
+        const sendTextButton = document.getElementById('sendTextButton');
+        const sendSampleGcodeButton = document.getElementById('sendSampleGcodeButton');
+        const disconnectButton = document.getElementById('disconnectButton');
+        const labelTextInput = document.getElementById('labelText');
+        const statusDiv = document.getElementById('status');
+        const gcodeTextarea = document.getElementById('gcodeTextarea');
+        const resetToSampleButton = document.getElementById('resetToSampleButton');
+        const gcodePreview = document.getElementById('gcodePreview');
+        const thicknessSlider = document.getElementById('thicknessSlider');
+        const thicknessValue = document.getElementById('thicknessValue');
 
-    // Preview stroke width in mm
-    let currentStrokeWidth = 2.0;
+        // Preview stroke width in mm
+        let currentStrokeWidth = 2.0;
 
         /**
          * Updates the status message on the UI.
@@ -122,7 +486,7 @@
          */
         const updateStatus = (message, color = 'text-gray-700') => {
             statusDiv.textContent = `Status: ${message}`;
-            statusDiv.className = `mt-6 p-4 bg-gray-100 rounded-lg text-sm ${color}`;
+            // keep base classes; color param is ignored for custom theme but preserved for API compatibility
         };
 
         /**
@@ -131,7 +495,7 @@
         const connectDevice = async () => {
             try {
                 updateStatus('Connecting...');
-                
+
                 // Request a Bluetooth device
                 labelMakerDevice = await navigator.bluetooth.requestDevice({
                     // filters: [{ namePrefix: 'LABEL' }],
@@ -154,8 +518,8 @@
                 updateStatus('Getting characteristic...');
                 labelMakerCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
 
-                updateStatus('Connected successfully!', 'text-green-600');
-                
+                updateStatus('Connected successfully!');
+
                 // Enable UI elements after successful connection
                 connectButton.disabled = true;
                 penDownButton.disabled = false;
@@ -165,7 +529,7 @@
                 disconnectButton.disabled = false;
 
             } catch (error) {
-                updateStatus(`Connection failed: ${error}`, 'text-red-600');
+                updateStatus(`Connection failed: ${error}`);
                 console.error('Connection error:', error);
             }
         };
@@ -186,9 +550,9 @@
                     throw new Error(`Payload ${data.byteLength} exceeds 512 bytes`);
                 }
                 await labelMakerCharacteristic.writeValue(data);
-                updateStatus(`Command sent: "${command.slice(0, 60)}${command.length > 60 ? '…' : ''}"`, 'text-blue-600');
+                updateStatus(`Command sent: "${command.slice(0, 60)}${command.length > 60 ? '…' : ''}"`);
             } catch (error) {
-                updateStatus(`Failed to send command: ${error}`, 'text-red-600');
+                updateStatus(`Failed to send command: ${error}`);
                 console.error('Send command error:', error);
             }
         };
@@ -214,15 +578,15 @@
                 }
                 // end
                 await writeCommand('print-raw-end,');
-                updateStatus('G-code sent (chunked).', 'text-green-600');
+                updateStatus('G-code sent (chunked).');
             } catch (error) {
-                updateStatus(`Chunked send failed: ${error}`, 'text-red-600');
+                updateStatus(`Chunked send failed: ${error}`);
                 console.error('Chunked send error:', error);
             }
         };
 
         // Build a 5cm-wide ruler-like example with X & Y axes, cm and 0.5cm ticks, and numeric labels (as line strokes)
-    // Origin (0,0) is bottom-left. Max area is 260x30 mm; height is capped.
+        // Origin (0,0) is bottom-left. Max area is 260x30 mm; height is capped.
         const buildSampleGcode = () => {
             const AREA_W = 260, AREA_H = 30;
             const MARGIN = 0; // no margin
@@ -241,34 +605,34 @@
             const DIGIT_W = 3, DIGIT_H = 5;
             const segs = {
                 A: [0, DIGIT_H, DIGIT_W, DIGIT_H],
-                B: [DIGIT_W, DIGIT_H, DIGIT_W, DIGIT_H/2],
-                C: [DIGIT_W, DIGIT_H/2, DIGIT_W, 0],
+                B: [DIGIT_W, DIGIT_H, DIGIT_W, DIGIT_H / 2],
+                C: [DIGIT_W, DIGIT_H / 2, DIGIT_W, 0],
                 D: [0, 0, DIGIT_W, 0],
-                E: [0, DIGIT_H/2, 0, 0],
-                F: [0, DIGIT_H, 0, DIGIT_H/2],
-                G: [0, DIGIT_H/2, DIGIT_W, DIGIT_H/2],
+                E: [0, DIGIT_H / 2, 0, 0],
+                F: [0, DIGIT_H, 0, DIGIT_H / 2],
+                G: [0, DIGIT_H / 2, DIGIT_W, DIGIT_H / 2],
             };
             const map = {
-                0: ['A','B','C','D','E','F'],
-                1: ['B','C'],
-                2: ['A','B','G','E','D'],
-                3: ['A','B','G','C','D'],
-                4: ['F','G','B','C'],
-                5: ['A','F','G','C','D'],
-                6: ['A','F','G','E','C','D'],
-                7: ['A','B','C'],
-                8: ['A','B','C','D','E','F','G'],
-                9: ['A','B','C','D','F','G'],
+                0: ['A', 'B', 'C', 'D', 'E', 'F'],
+                1: ['B', 'C'],
+                2: ['A', 'B', 'G', 'E', 'D'],
+                3: ['A', 'B', 'G', 'C', 'D'],
+                4: ['F', 'G', 'B', 'C'],
+                5: ['A', 'F', 'G', 'C', 'D'],
+                6: ['A', 'F', 'G', 'E', 'C', 'D'],
+                7: ['A', 'B', 'C'],
+                8: ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
+                9: ['A', 'B', 'C', 'D', 'F', 'G'],
             };
 
             const cmds = [];
-            const moveRapid = (x,y) => { cmds.push(`M5`); cmds.push(`G0 X${x} Y${y}`); };
-            const drawTo = (x,y) => { cmds.push(`M3`); cmds.push(`G1 X${x} Y${y}`); cmds.push(`M5`); };
-            const drawLine = (x1,y1,x2,y2) => { moveRapid(x1,y1); drawTo(x2,y2); };
+            const moveRapid = (x, y) => { cmds.push(`M5`); cmds.push(`G0 X${x} Y${y}`); };
+            const drawTo = (x, y) => { cmds.push(`M3`); cmds.push(`G1 X${x} Y${y}`); cmds.push(`M5`); };
+            const drawLine = (x1, y1, x2, y2) => { moveRapid(x1, y1); drawTo(x2, y2); };
             const drawDigit = (n, ox, oy) => {
                 const seglist = map[n]; if (!seglist) return;
                 for (const s of seglist) {
-                    const [x1,y1,x2,y2] = segs[s];
+                    const [x1, y1, x2, y2] = segs[s];
                     drawLine(ox + x1, oy + y1, ox + x2, oy + y2);
                 }
             };
@@ -322,19 +686,19 @@
         };
 
         // --- G-code preview renderer (SVG) ---
-    const MAX_X = 260, MAX_Y = 30;
+        const MAX_X = 260, MAX_Y = 30;
         const clearNode = (node) => { while (node.firstChild) node.removeChild(node.firstChild); };
-    const parseAndRenderGcode = (program) => {
+        const parseAndRenderGcode = (program) => {
             clearNode(gcodePreview);
 
-            // Draw area border
+            // Draw area border (tape edges) and keep fill transparent; tape color provided by container
             const border = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             border.setAttribute('x', '0');
             border.setAttribute('y', '0');
             border.setAttribute('width', String(MAX_X));
             border.setAttribute('height', String(MAX_Y));
-            border.setAttribute('fill', 'white');
-            border.setAttribute('stroke', '#e5e7eb');
+            border.setAttribute('fill', 'transparent');
+            border.setAttribute('stroke', 'rgba(255,255,255,0.25)');
             border.setAttribute('stroke-width', '0.4');
             gcodePreview.appendChild(border);
 
@@ -408,7 +772,9 @@
                 const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 p.setAttribute('d', path);
                 p.setAttribute('fill', 'none');
-                p.setAttribute('stroke', '#7c3aed');
+                // Silver paint effect on purple tape
+                p.setAttribute('stroke', '#d5dbe6');
+                p.setAttribute('stroke-opacity', '0.95');
                 p.setAttribute('stroke-width', String(currentStrokeWidth));
                 p.setAttribute('stroke-linecap', 'round');
                 p.setAttribute('stroke-linejoin', 'round');
@@ -422,11 +788,11 @@
         const sendText = () => {
             const txt = (labelTextInput.value || '').trim();
             if (!txt) {
-                updateStatus('Enter some text to print.', 'text-red-600');
+                updateStatus('Enter some text to print.');
                 return;
             }
             if (txt.length > 400) {
-                updateStatus('Text too long for single BLE write. Keep under ~400 chars.', 'text-red-600');
+                updateStatus('Text too long for single BLE write. Keep under ~400 chars.');
                 return;
             }
             writeCommand(`print-text,${txt}`);
@@ -435,7 +801,7 @@
         const sendSampleGcode = () => {
             const g = (gcodeTextarea.value || '').trim();
             if (!g) {
-                updateStatus('No G-code to send.', 'text-red-600');
+                updateStatus('No G-code to send.');
                 return;
             }
             // decide chunking based on size
@@ -457,9 +823,9 @@
         const disconnectDevice = () => {
             if (labelMakerDevice && labelMakerDevice.gatt.connected) {
                 labelMakerDevice.gatt.disconnect();
-                updateStatus('Disconnected.', 'text-gray-700');
+                updateStatus('Disconnected.');
             } else {
-                updateStatus('Device is already disconnected.', 'text-gray-700');
+                updateStatus('Device is already disconnected.');
             }
         };
 
@@ -467,7 +833,7 @@
          * Handler for when the device unexpectedly disconnects.
          */
         const onDisconnected = (event) => {
-            updateStatus('Device disconnected.', 'text-red-600');
+            updateStatus('Device disconnected.');
             // Reset state
             labelMakerDevice = null;
             labelMakerCharacteristic = null;
@@ -495,6 +861,31 @@
             parseAndRenderGcode(gcodeTextarea.value || '');
         });
 
+        // Tabs
+        const tabText = document.getElementById('tabText');
+        const tabGcode = document.getElementById('tabGcode');
+        const tabRaw = document.getElementById('tabRaw');
+        const sectionText = document.getElementById('sectionText');
+        const sectionGcode = document.getElementById('sectionGcode');
+        const sectionRaw = document.getElementById('sectionRaw');
+
+        const setActiveTab = (target) => {
+            const tabs = [tabText, tabGcode, tabRaw];
+            const sections = [sectionText, sectionGcode, sectionRaw];
+            tabs.forEach((t, i) => {
+                const active = t === target;
+                t.classList.toggle('active', active);
+                sections[i].classList.toggle('hidden', !active);
+            });
+            // Re-render preview if switching to G-code
+            if (target === tabGcode) {
+                parseAndRenderGcode(gcodeTextarea.value || '');
+            }
+        };
+        tabText.addEventListener('click', () => setActiveTab(tabText));
+        tabGcode.addEventListener('click', () => setActiveTab(tabGcode));
+        tabRaw.addEventListener('click', () => setActiveTab(tabRaw));
+
         // Initialize textarea with sample and render preview
         (function initSample() {
             const g = buildSampleGcode();
@@ -503,4 +894,5 @@
         })();
     </script>
 </body>
+
 </html>
