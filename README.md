@@ -2,7 +2,8 @@
 
 Build a simple label plotter that draws on tape. You can control it with joystick, from a web page over Bluetooth, or by sending tiny programs (G‑code).
 
-![Project hero — finished label maker sitting on a desk](.docs/hero.png)
+![Project hero — finished label maker sitting on a desk](.docs/label-maker.jpg)
+![Web page — main controls and preview](.docs/web-ui.png)
 
 This project is based on the CrunchLabs Hackpack “Label Maker.” Full credit to CrunchLabs for the original idea and build. Original: https://www.crunchlabs.com/products/label
 
@@ -15,8 +16,6 @@ This version swaps in an Arduino Nano ESP32 so it can talk over Bluetooth Low En
 - A small machine with 2 stepper motors and a pen that draws letters and shapes on label tape.
 - You can use the on‑board buttons and LCD, or connect from your phone or computer over Bluetooth.
 - There’s a simple web page (`test-client.html`) to connect, type text, and print.
-
-![Close‑up of the assembled machine with labels](.docs/assembled.png)
 
 ---
 
@@ -41,8 +40,7 @@ This version swaps in an Arduino Nano ESP32 so it can talk over Bluetooth Low En
 - After a print, it moves the carriage right and returns Y to 0 so you’re ready for the next label.
 
 Tip: Keep drawings within about 260 mm (X) by 30 mm (Y).
-
-![Example label — “HELLO” printed on tape](.docs/example-label.png)
+<img src=".docs/example-label.jpg" alt="Example label — Ruller printed on a tape" style="max-width: 8cm;">
 
 ---
 
@@ -59,7 +57,7 @@ Tip: Keep drawings within about 260 mm (X) by 30 mm (Y).
 
 Wiring matches the original Hackpack pinout, so you don’t need to rewire.
 
-![Wiring diagram — where each cable goes](.docs/wiring.png)
+![Wiring diagram — where each cable goes](.docs/arduino-nano-esp32-connected.jpg)
 
 ---
 
@@ -165,8 +163,6 @@ Security: No pairing by default; anyone nearby could connect. Turn it off when n
   - Keep drawings within ~260×30 mm.
   - Press the tape down firmly on the holder.
 
-![Troubleshooting — common mistakes and fixes](.docs/troubleshooting.png)
-
 ---
 
 ## Optional: For curious builders
@@ -177,30 +173,11 @@ Security: No pairing by default; anyone nearby could connect. Turn it off when n
 - Web Bluetooth lets websites talk to BLE devices; `test-client.html` is a tiny example.
 - What is G‑code? A common language for machines like 3D printers and CNC. We use a tiny subset here with hope, that dedicated plotting software for laser cutters and cnc machines will be able to prepare gcode for our label maker.
 
-![Inside view — steppers, belts, and pen lifter](.docs/inside-view.png)
-
 ---
 
 ## License
 
 MIT License. See the header in `label-maker.ino`.
-
----
-
-## TODO: screenshots to create
-
-Place these PNGs in the `.docs/` folder:
-
-- [ ] hero.png
-- [ ] assembled.png
-- [ ] example-label.png
-- [ ] wiring.png
-- [ ] ide-board-port.png
-- [ ] web-connect.png
-- [x] web-ui.png
-- [ ] gcode-rectangle.png
-- [ ] troubleshooting.png
-- [ ] inside-view.png
 
 ---
 
