@@ -323,26 +323,26 @@
             <div class="wood-rail bottom wood-grain"></div>
         </div>
 
-        <!-- Top nameplate -->
-        <div class="w-fit mb-6 relative z-10 px-4 py-2">
-            <span class="logo-cutout">Label Maker</span>
+        <div class="flex gap-6 mb-6">
+            <!-- Top nameplate -->
+            <div class="w-fit  relative z-10 px-4 py-2">
+                <span class="logo-cutout">Label Maker</span>
 
-            <!-- Decorative purple joystick/screws cluster -->
-            <div class="absolute w-full h-full top-0 left-0">
-                <div class="screw" style="left:0; top:0"></div>
-                <div class="screw" style="right:0; top:0"></div>
-                <div class="screw" style="left:0; bottom:0"></div>
-                <div class="screw" style="right:0; bottom:0"></div>
+                <!-- Decorative purple joystick/screws cluster -->
+                <div class="absolute w-full h-full top-0 left-0">
+                    <div class="screw" style="left:0; top:0"></div>
+                    <div class="screw" style="right:0; top:0"></div>
+                    <div class="screw" style="left:0; bottom:0"></div>
+                    <div class="screw" style="right:0; bottom:0"></div>
+                </div>
             </div>
-        </div>
 
-        <!-- Toolbar -->
-        <div class="relative z-10 mb-4 flex flex-wrap items-center gap-2">
+            <!-- Toolbar -->
             <div class="flex items-center gap-2">
                 <button id="connectButton" class="btn btn-sm">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M3 12h3m12 0h3M7 12a5 5 0 0110 0" stroke="white" stroke-width="2"
-                            stroke-linecap="round" />
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M7 17L17 7L12 2V22L17 17L7 7" stroke="white" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
                     </svg>
                     Connect
                 </button>
@@ -354,7 +354,8 @@
                     Disconnect
                 </button>
             </div>
-            <div class="ml-auto">
+
+            <div>
                 <div id="status" class="lcd text-xs sm:text-sm">
                     Status: Ready to connect.
                 </div>
@@ -375,7 +376,8 @@
                     <div class="space-y-2">
                         <label class="engraved text-sm opacity-80">Text to plot</label>
                         <div class="flex gap-2">
-                            <input id="labelText" type="text" placeholder="Enter label text" class="input w-full" maxlength="12" />
+                            <input id="labelText" type="text" placeholder="Enter label text" class="input w-full"
+                                maxlength="12" />
                             <button id="sendTextButton" class="btn btn-sm" disabled>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                                     xmlns="http://www.w3.org/2000/svg">
@@ -391,7 +393,7 @@
                 <!-- G-code section -->
                 <section id="sectionGcode" class="relative z-10 space-y-3 h-full">
                     <div class="space-y-2">
-                        
+
                         <div class="engraved text-sm opacity-80">G-Code Preview</div>
 
                         <div class="flex items-center gap-3 max-w-md">
@@ -422,7 +424,7 @@
                             <button id="resetToSampleButton" class="btn btn-secondary btn-sm">Reset to Sample</button>
                         </div>
                     </div>
-                    
+
                 </section>
 
                 <!-- Raw section -->
