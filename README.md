@@ -26,7 +26,7 @@ This version swaps in an Arduino Nano ESP32 so it can talk over Bluetooth Low En
 
 - A small machine with 2 stepper motors and a pen that draws letters and shapes on label tape.
 - You can use the on‑board buttons and LCD, or connect from your phone or computer over Bluetooth.
-- There’s a simple web page (`web-client/index.html`) to connect, type text, and print.
+- There’s a simple web page (`web-client.html`) to connect, type text, and print.
 
 ---
 
@@ -94,10 +94,10 @@ You should see “Initializing…” on the LCD, the servo twitch, and the stepp
 
 ## Try the Web Bluetooth page
 
-`web-client/index.html` is a tiny page that runs in Chrome/Edge on desktop and Android. It talks to the label maker over BLE.
+`web-client.html` is a tiny page that runs in Chrome/Edge on desktop and Android. It talks to the label maker over BLE.
 
 Steps:
-- Open `web-client/index.html` (double‑click the file or drag it into a browser tab)
+- Open `web-client.html` (double‑click the file or drag it into a browser tab)
 - Click “Connect” and pick the device named `LABEL MAKER`
 - Try the buttons:
   - Pen Down / Pen Up
@@ -180,7 +180,7 @@ Security: No pairing by default; anyone nearby could connect. Turn it off when n
 - Using VS Code: open this folder in VS Code. There are tasks for “Compile” and “Upload” that call `arduino-cli` for the Nano ESP32.
 - Built with help from GitHub Copilot - Highly recommended when you write some code for your robot, but it doesn't work and you don't know why.
 - How the BLE protocol works: send simple text like `print-text,Hello` or `print-raw,<gcode>`. For big G‑code, stream with begin/data/end.
-- Web Bluetooth lets websites talk to BLE devices; `web-client/index.html` is a tiny example.
+- Web Bluetooth lets websites talk to BLE devices; `web-client.html` is a tiny example.
 - What is G‑code? A common language for machines like 3D printers and CNC. We use a tiny subset here with hope, that dedicated plotting software for laser cutters and cnc machines will be able to prepare gcode for our label maker.
 
 ---
