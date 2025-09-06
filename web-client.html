@@ -72,8 +72,6 @@
         .wood-rail {
             position: absolute;
             height: 20px;
-            left: -16px;
-            right: -16px;
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), inset 0 -1px 0 rgba(0, 0, 0, .55), 0 2px 8px rgba(0, 0, 0, .6);
         }
 
@@ -214,7 +212,6 @@
             position: relative;
             background: #0f0f10;
             border-radius: 0;
-            padding: 14px;
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), inset 0 -1px 0 rgba(0, 0, 0, .6), 0 16px 40px rgba(0, 0, 0, .55);
         }
 
@@ -289,14 +286,14 @@
     </style>
 </head>
 
-<body class="min-h-screen p-4">
-    <div class="w-full device-case p-6 md:p-8">
+<body class="min-h-screen p-2 md:p-4">
+    <div class="w-full device-case py-8 px-2 md:px-8">
         <div class="wood-rails" aria-hidden="true">
-            <div class="wood-rail top wood-grain"></div>
-            <div class="wood-rail bottom wood-grain"></div>
+            <div class="wood-rail -inset-x-2 md:-inset-x-4 top wood-grain"></div>
+            <div class="wood-rail -inset-x-2 md:-inset-x-4 bottom wood-grain"></div>
         </div>
 
-        <div class="flex gap-6 mb-6">
+        <div class="flex flex-wrap gap-6 mb-6">
             <!-- Top nameplate -->
             <div class="w-fit  relative z-10 px-4 py-2">
                 <span class="logo-cutout">Label Maker</span>
@@ -376,9 +373,8 @@
                             <span id="thicknessValue" class="text-xs text-slate-400">2.0 mm</span>
                             <span class="text-xs text-slate-400">Area: 260 × 30 mm</span>
                         </div>
-                        <div class="preview-frame">
-                            <div class="tape-surface"
-                                style="overflow:hidden; width: 100%; max-width: 260mm; aspect-ratio: 260/34;">
+                        <div class="preview-frame p-0 md:p-2">
+                            <div class="tape-surface">
                                 <div class="relative">
                                     <svg id="gcodePreview" class="overflow-visible"
                                         style="width: 100%; max-width: 260mm; aspect-ratio: 260/30; display:block;"
@@ -392,7 +388,7 @@
                             bottom-left)</label>
                         <textarea id="gcodeTextarea" rows="12" class="input w-full font-mono text-sm"
                             placeholder="Enter G-code here"></textarea>
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
                             <button id="sendSampleGcodeButton" class="btn btn-sm" disabled>Send G-code</button>
                             <button id="resetToSampleButton" class="btn btn-secondary btn-sm"
                                 title="Load sample ruler into viewer">Load sample ruler</button>
