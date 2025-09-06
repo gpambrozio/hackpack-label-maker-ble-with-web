@@ -345,10 +345,21 @@ void bleSetup() {
     }
     pCharacteristic->setCallbacks(new MyCallbacks());
     pService->start();
-    NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
-    pAdvertising->addServiceUUID(pService->getUUID());
-    pAdvertising->start();
-    Serial.println("BLE advertising started.");
+  NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
+  // Primary advertising: keep it small and include the device name so most scanners show it.
+  NimBLEAdvertisementData advData;
+  advData.setName(BTDeviceName);       // put the name in the primary ADV packet
+  advData.setFlags(0x06);              // LE General Discoverable + BR/EDR Not Supported
+  pAdvertising->setAdvertisementData(advData);
+
+  // Scan response: include the 128-bit service UUID here (it’s large and can crowd out the name in ADV)
+  NimBLEAdvertisementData scanData;
+  scanData.addServiceUUID(pService->getUUID());
+  pAdvertising->setScanResponseData(scanData);
+
+  // Start advertising
+  pAdvertising->start();
+  Serial.println("BLE advertising started.");
 }
 
 void setup() {

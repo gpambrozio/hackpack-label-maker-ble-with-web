@@ -9,6 +9,17 @@ This project is based on the CrunchLabs Hackpack “Label Maker.” Full credit 
 
 This version swaps in an Arduino Nano ESP32 so it can talk over Bluetooth Low Energy (BLE) and print from a tiny web page.
 
+## Example prints
+
+### Ruller printed on a tape
+<img src=".docs/example-label.jpg" alt="Example label — Ruller printed on a tape" style="max-width: 8cm;">
+
+### Crunch Labs Logo
+![Example gcode - Crunch Labs Logo](.docs/crunch-labs-logo.png)
+
+![Example sticker - Crunch Labs Logo](.docs/crunch-labs-logo-sticker.png)
+
+
 ---
 
 ## What you’ll make (for beginners)
@@ -40,7 +51,6 @@ This version swaps in an Arduino Nano ESP32 so it can talk over Bluetooth Low En
 - After a print, it moves the carriage right and returns Y to 0 so you’re ready for the next label.
 
 Tip: Keep drawings within about 260 mm (X) by 30 mm (Y).
-<img src=".docs/example-label.jpg" alt="Example label — Ruller printed on a tape" style="max-width: 8cm;">
 
 ---
 

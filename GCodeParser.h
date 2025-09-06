@@ -16,12 +16,18 @@ class GCodeParser {
   typedef void (*MoveCallback)(float x_mm, float y_mm, bool drawing);
   typedef void (*PenCallback)(bool down);
 
+  // The parser uses a simple work-coordinate offset (like a fixed G92) so that
+  // absolute program coordinates are interpreted relative to the starting
+  // machine position when execution begins. This makes programs that start at
+  // X0/Y0 render at the current device position instead of the physical origin.
   GCodeParser(MoveCallback moveCb, PenCallback penCb, float startXmm = 0, float startYmm = 0)
-      : _move(moveCb), _pen(penCb), _x(startXmm), _y(startYmm) {}
+      : _move(moveCb), _pen(penCb), _x(startXmm), _y(startYmm), _ox(startXmm), _oy(startYmm) {}
 
   void reset(float x_mm, float y_mm) {
     _x = x_mm;
     _y = y_mm;
+    _ox = x_mm;
+    _oy = y_mm;
     _abs = true;
     // do not change pen state on reset
   }
@@ -110,13 +116,13 @@ class GCodeParser {
 
       if (gnum == 0 || gnum == 00) {
         // Rapid move: do not draw regardless of pen state
-        float tx = hasX ? coordTarget(xVal, _x) : _x;
-        float ty = hasY ? coordTarget(yVal, _y) : _y;
+        float tx = hasX ? coordTarget(xVal, _x, true) : _x;
+        float ty = hasY ? coordTarget(yVal, _y, false) : _y;
         doMove(tx, ty, false);
       } else if (gnum == 1 || gnum == 01) {
         // Linear move: draw if pen is down
-        float tx = hasX ? coordTarget(xVal, _x) : _x;
-        float ty = hasY ? coordTarget(yVal, _y) : _y;
+        float tx = hasX ? coordTarget(xVal, _x, true) : _x;
+        float ty = hasY ? coordTarget(yVal, _y, false) : _y;
         doMove(tx, ty, _penDown);
       } else if (gnum == 90) {
         _abs = true;
@@ -169,6 +175,9 @@ class GCodeParser {
   PenCallback _pen;
     float _x = 0.0f;
     float _y = 0.0f;
+    // Work-coordinate offset applied to absolute targets (acts like a fixed G92 at start)
+    float _ox = 0.0f;
+    float _oy = 0.0f;
   bool _abs = true;   // G90
   bool _penDown = false;
 
@@ -240,8 +249,11 @@ class GCodeParser {
     return any ? (neg ? -val : val) : 0.0f;
   }
 
-  float coordTarget(float v, float current) const {
-    if (_abs) return v;
+  float coordTarget(float v, float current, bool axisIsX = true) const {
+    if (_abs) {
+      // Apply starting offset so absolute program coordinates are relative to start
+      return (axisIsX ? _ox : _oy) + v;
+    }
     return current + v;
   }
 
