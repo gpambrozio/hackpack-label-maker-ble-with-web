@@ -10,46 +10,19 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rubik:wght@400;600;800&display=swap"
         rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-                        display: ['Rubik', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-                    },
-                    colors: {
-                        purpleAccent: '#7c3aed',
-                        panel: '#111213',
-                        panel2: '#17181a',
-                        ebony: '#0b0b0c',
-                        wood1: '#a47148',
-                        wood2: '#8b5e3c',
-                        wood3: '#c18f59',
-                    },
-                    boxShadow: {
-                        glow: '0 0 0 1px rgba(124,58,237,0.4), 0 0 18px rgba(124,58,237,0.25)',
-                        insetSoft: 'inset 0 2px 6px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.03)'
-                    }
-                }
-            }
-        }
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
         :root {
             --bg: #0b0b0c;
             /* deep black, painted plywood */
             --panel: #111213;
             --panel-2: #17181a;
-            --accent: #7c3aed;
             /* purple touches */
             --wood-1: #a47148;
             /* warm plywood core */
             --wood-2: #8b5e3c;
             --wood-3: #c18f59;
             --text: #e5e7eb;
-            --muted: #9ca3af;
         }
 
         body {
@@ -481,14 +454,12 @@
         // Preview stroke width in mm
         let currentStrokeWidth = 2.0;
 
-        /**
-         * Updates the status message on the UI.
-         * @param {string} message The message to display.
-         * @param {string} color The Tailwind CSS text color class.
-         */
-        const updateStatus = (message, color = 'text-gray-700') => {
+    /**
+     * Updates the status message on the UI.
+     * @param {string} message The message to display.
+     */
+    const updateStatus = (message) => {
             statusDiv.textContent = `Status: ${message}`;
-            // keep base classes; color param is ignored for custom theme but preserved for API compatibility
         };
 
         /**
@@ -541,7 +512,7 @@
          */
         const writeCommand = async (command) => {
             if (!labelMakerCharacteristic) {
-                updateStatus('Not connected.', 'text-red-600');
+                updateStatus('Not connected.');
                 return;
             }
             try {
@@ -562,7 +533,7 @@
         // Write a potentially long G-code using chunked protocol
         const sendGcodeChunked = async (program) => {
             if (!labelMakerCharacteristic) {
-                updateStatus('Not connected.', 'text-red-600');
+                updateStatus('Not connected.');
                 return;
             }
             const encoder = new TextEncoder();
@@ -590,7 +561,7 @@
         // Build a 5cm-wide ruler-like example with X & Y axes, cm and 0.5cm ticks, and numeric labels (as line strokes)
         // Origin (0,0) is bottom-left. Max area is 260x30 mm; height is capped.
         const buildSampleGcode = () => {
-            const AREA_W = 260, AREA_H = 30;
+            const AREA_H = 30;
             const MARGIN = 0; // no margin
             const L = MARGIN, B = MARGIN;
             const WIDTH = 50; // 5cm
@@ -664,7 +635,6 @@
             }
 
             // Y-axis ticks and labels (every 5mm, labels at each cm)
-            const maxYcm = Math.floor(HEIGHT / 10);
             for (let j = 0; j <= HEIGHT; j += 5) {
                 const y = B + j;
                 const len = (j % 10 === 0) ? MAJOR : MINOR;
@@ -834,7 +804,7 @@
         /**
          * Handler for when the device unexpectedly disconnects.
          */
-        const onDisconnected = (event) => {
+    const onDisconnected = () => {
             updateStatus('Device disconnected.');
             // Reset state
             labelMakerDevice = null;
