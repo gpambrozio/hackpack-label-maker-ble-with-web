@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////
-              //  LICENSE  //
+//  LICENSE  //
 //////////////////////////////////////////////////
 #pragma region LICENSE
 /*
@@ -30,7 +30,7 @@
 #pragma endregion LICENSE
 
 //////////////////////////////////////////////////
-              //  LIBRARIES  //
+//  LIBRARIES  //
 //////////////////////////////////////////////////
 #pragma region LIBRARIES
 #include <Wire.h>
@@ -50,43 +50,41 @@
 #endif
 
 //////////////////////////////////////////////////
-          //  PINS AND PARAMETERS  //
+//  PINS AND PARAMETERS  //
 //////////////////////////////////////////////////
 #pragma region PINS AND PARAMS
 
-LiquidCrystal_I2C lcd(0x27, 16, 2);  // Set the LCD address to 0x27 for a 16x2 display
+LiquidCrystal_I2C lcd(0x27, 16, 2); // Set the LCD address to 0x27 for a 16x2 display
 
-ezButton button1(A0); //joystick button handler
-#define INIT_MSG "Initializing..." // Text to display on startup
-#define MODE_NAME "   LABELMAKER   " //these are variables for the text which is displayed in different menus. 
-#define PRINT_CONF "  PRINT LABEL?  " //try changing these, or making new ones and adding conditions for when they are used
-#define PRINTING "    PRINTING    " // NOTE: this text must be 16 characters or LESS in order to fit on the screen correctly
-#define MENU_CLEAR ":                " //this one clears the menu for editing
+ezButton button1(A0);                  // joystick button handler
+#define INIT_MSG "Initializing..."     // Text to display on startup
+#define MODE_NAME "   LABELMAKER   "   // these are variables for the text which is displayed in different menus.
+#define PRINT_CONF "  PRINT LABEL?  "  // try changing these, or making new ones and adding conditions for when they are used
+#define PRINTING "    PRINTING    "    // NOTE: this text must be 16 characters or LESS in order to fit on the screen correctly
+#define MENU_CLEAR ":                " // this one clears the menu for editing
 
-
-//text variables
-int x_scale = 230;//these are multiplied against the stored coordinate (between 0 and 4) to get the actual number of steps moved
-int y_scale = 230;//for example, if this is 230(default), then 230(scale) x 4(max coordinate) = 920 (motor steps)
+// text variables
+int x_scale = 230; // these are multiplied against the stored coordinate (between 0 and 4) to get the actual number of steps moved
+int y_scale = 230; // for example, if this is 230(default), then 230(scale) x 4(max coordinate) = 920 (motor steps)
 int scale = x_scale;
-int space = x_scale * 5; //space size between letters (as steps) based on X scale in order to match letter width
-//multiplied by 5 because the scale variables are multiplied against coordinates later, while space is just fed in directly, so it needs to be scaled up by 5 to match
-
+int space = x_scale * 5; // space size between letters (as steps) based on X scale in order to match letter width
+// multiplied by 5 because the scale variables are multiplied against coordinates later, while space is just fed in directly, so it needs to be scaled up by 5 to match
 
 // Joystick setup
-const int joystickXPin = A2;  // Connect the joystick X-axis to this analog pin
-const int joystickYPin = A1;  // Connect the joystick Y-axis to this analog pin
-const int joystickButtonThreshold = 200;  // Adjust this threshold value based on your joystick
+const int joystickXPin = A2;             // Connect the joystick X-axis to this analog pin
+const int joystickYPin = A1;             // Connect the joystick Y-axis to this analog pin
+const int joystickButtonThreshold = 200; // Adjust this threshold value based on your joystick
 const int joystickButtonOffset = -256;
 
 // Menu parameters
-const char alphabet[] = "_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?,.#@"; //alphabet menu
+const char alphabet[] = "_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?,.#@"; // alphabet menu
 int alphabetSize = sizeof(alphabet) - 1;
-String text;  // Store the label text
+String text; // Store the label text
 
-int currentCharacter = 0; //keep track of which character is currently displayed under the cursor
-int cursorPosition = 0; //keeps track of the cursor position (left to right) on the screen
-int currentPage = 0; //keeps track of the current page for menus
-const int charactersPerPage = 16; //number of characters that can fit on one row of the screen
+int currentCharacter = 0;         // keep track of which character is currently displayed under the cursor
+int cursorPosition = 0;           // keeps track of the cursor position (left to right) on the screen
+int currentPage = 0;              // keeps track of the current page for menus
+const int charactersPerPage = 16; // number of characters that can fit on one row of the screen
 
 // Stepper motor parameters
 const int stepCount = 200;
@@ -94,24 +92,40 @@ const int stepsPerRevolution = 2048;
 
 // initialize the stepper library for both steppers:
 Stepper xStepper(stepsPerRevolution, 6, 8, 7, 9);
-Stepper yStepper(stepsPerRevolution, 2, 4, 3, 5); 
+Stepper yStepper(stepsPerRevolution, 2, 4, 3, 5);
 
-int xPins[4] = {6, 8, 7, 9};  // pins for x-motor coils
-int yPins[4] = {2, 4, 3, 5};    // pins for y-motor coils
+int xPins[4] = {6, 8, 7, 9}; // pins for x-motor coils
+int yPins[4] = {2, 4, 3, 5}; // pins for y-motor coils
 
-//Servo
-const int SERVO_PIN  = D13;
+// Servo
+const int SERVO_PIN = D13;
 Servo servo;
 int angle = 30; // the current angle of servo motor
 
-
 // Creates states to store what the current menu and joystick states are
 // Decoupling the state from other functions is good because it means the sensor / screen aren't hardcoded into every single action and can be handled at a higher level
-enum State { MainMenu, Editing, PrintConfirmation, Printing };
+enum State
+{
+  MainMenu,
+  Editing,
+  PrintConfirmation,
+  Printing
+};
 State currentState = MainMenu;
 State prevState = Printing;
 
-enum jState {LEFT, RIGHT, UP, DOWN, MIDDLE, UPRIGHT, UPLEFT, DOWNRIGHT, DOWNLEFT};
+enum jState
+{
+  LEFT,
+  RIGHT,
+  UP,
+  DOWN,
+  MIDDLE,
+  UPRIGHT,
+  UPLEFT,
+  DOWNRIGHT,
+  DOWNLEFT
+};
 jState joyState = MIDDLE;
 jState prevJoyState = MIDDLE;
 
@@ -132,224 +146,324 @@ int joystickX;
 int joystickY;
 #pragma endregion PINS AND PARAMS
 
+// When true, suppress normal UI LCD writes and keep the screen reserved for progress/status
+static volatile bool screenLocked = false;
+
+static void lcdShowProgress(int pct)
+{
+  if (pct < 0)
+    pct = 0;
+  if (pct > 100)
+    pct = 100;
+  // Row 0: "PRINT xx%" padded to clear previous
+  lcd.setCursor(0, 0);
+  char line[17];
+  snprintf(line, sizeof(line), "PRINT %3d%%      ", pct);
+  // Ensure 16 chars output
+  for (int i = 0; i < 16; ++i)
+  {
+    char c = (i < (int)strlen(line)) ? line[i] : ' ';
+    lcd.write(c);
+  }
+  // Row 1: fully clear to avoid leftovers from menus/text
+  lcd.setCursor(0, 1);
+  for (int i = 0; i < 16; ++i)
+  {
+    lcd.write(' ');
+  }
+}
+#pragma endregion PINS AND PARAMS
+
 //////////////////////////////////////////////////
-           //  CHARACTER VECTORS  //
+//  CHARACTER VECTORS  //
 //////////////////////////////////////////////////
 #pragma region CHARACTER VECTORS
 const uint8_t vector[63][14] = {
-  /*
-    encoding works as follows:
-    ones     = y coordinate;
-    tens     = x coordinate;
-    hundreds = draw/don't draw ..
-    200      = end
-    222      = plot point
-    !! for some reason leading zeros cause problems !!
-  */
-  {  0,  124,  140,  32,  112,   200,  200,  200,  200,  200,  200,  200,  200,  200}, //my A character
-  {  0,  104,  134,  132,    2,  142,  140,  100,  200,  200,  200,  200,  200,  200}, /*B*/ // the 2 was originally 002, not sure why
-  { 41,  130,  110,  101,  103,  114,  134,  143,  200,  200,  200,  200,  200,  200}, /*C*/
-  {  0,  104,  134,  143,  141,  130,  100,  200,  200,  200,  200,  200,  200,  200}, /*D*/
-  { 40,  100,  104,  144,   22,  102,  200,  200,  200,  200,  200,  200,  200,  200}, /*E*/
-  {  0,  104,  144,   22,  102,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*F*/
-  { 44,  104,  100,  140,  142,  122,  200,  200,  200,  200,  200,  200,  200,  200}, /*G*/
-  {  0,  104,    2,  142,   44,  140,  200,  200,  200,  200,  200,  200,  200,  200}, /*H*/
-  {  0,  104,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*I*/
-  {  1,  110,  130,  141,  144,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*J*/
-  {  0,  104,    2,  142,  140,   22,  144,  200,  200,  200,  200,  200,  200,  200}, /*K*/
-  { 40,  100,  104,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*L*/
-  {  0,  104,  122,  144,  140,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*M */
-  {  0,  104,  140,  144,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*N*/
-  { 10,  101,  103,  114,  134,  143,  141,  130,  110,  200,  200,  200,  200,  200}, /*O*/
-  {  0,  104,  144,  142,  102,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*P*/
-  {  0,  104,  144,  142,  120,  100,   22,  140,  200,  200,  200,  200,  200,  200}, /*Q*/
-  {  0,  104,  144,  142,  102,   22,  140,  200,  200,  200,  200,  200,  200,  200}, /*R*/
-  {  0,  140,  142,  102,  104,  144,  200,  200,  200,  200,  200,  200,  200,  200}, /*S*/
-  { 20,  124,    4,  144,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*T*/
-  {  4,  101,  110,  130,  141,  144,  200,  200,  200,  200,  200,  200,  200,  200}, /*U*/
-  {  4,  120,  144,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*V*/
-  {  4,  100,  122,  140,  144,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*W*/
-  {  0,  144,    4,  140,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*X*/
-  {  4,  122,  144,   22,  120,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*Y*/
-  {  4,  144,  100,  140,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*Z*/
-  {  0,  104,  144,  140,  100,  144,  200,  200,  200,  200,  200,  200,  200,  200}, /*0*/
-  {  0,  140,   20,  124,  104,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*1*/
-  {  4,  144,  142,  102,  100,  140,  200,  200,  200,  200,  200,  200,  200,  200}, /*2*/
-  {  0,  140,  144,  104,   12,  142,  200,  200,  200,  200,  200,  200,  200,  200}, /*3*/
-  { 20,  123,   42,  102,  104,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*4*/
-  {  0,  140,  142,  102,  104,  144,  200,  200,  200,  200,  200,  200,  200,  200}, /*5*/
-  {  2,  142,  140,  100,  104,  144,  200,  200,  200,  200,  200,  200,  200,  200}, /*6*/
-  {  0,  144,  104,   12,  132,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*7*/
-  {  0,  140,  144,  104,  100,    2,  142,  200,  200,  200,  200,  200,  200,  200}, /*8*/
-  {  0,  140,  144,  104,  102,  142,  200,  200,  200,  200,  200,  200,  200,  200}, /*9*/
-  { 200, 200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /* */
-  { 200, 200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /* */
-  {  0,  144,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*/*/
-  {  0,  102,  124,  142,  140,   42,  102,    4,  103,   44,  143,  200,  200,  200}, /*Ä*/
-  {  0,  102,  142,  140,  100,    2,   14,  113,   34,  133,  200,  200,  200,  200}, /*Ö*/
-  {  4,  100,  140,  144,   14,  113,   34,  133,  200,  200,  200,  200,  200,  200}, /*Ü*/
-  {  0,  111,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*,*/
-  {  2,  142,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*-*/
-  {  0,  222,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*.*/
-  {  0,  222,    1,  104,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*!*/
-  {  20, 222,   21,  122,  142,  144,  104,  200,  200,  200,  200,  200,  200,  200}, /*?*/ 
-  {  0,  104,  134,  133,  122,  142,  140,  110,  200,  200,  200,  200,  200,  200}, /*ß*/
-  {  23, 124,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*'*/
-  {  42, 120,  100,  101,  123,  124,  104,  103,  130,  140,  200,  200,  200,  200}, /*&*/
-  {  2,  142,   20,  124,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*+*/
-  {  21, 222,   23,  222,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*:*/
-  {  10, 121,   22,  222,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*;*/
-  {  14, 113,   33,  134,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*"*/
-  {  10, 114,   34,  130,   41,  101,    3,  143,  200,  200,  200,  200,  200,  200}, /*#*/
-  {  34, 124,  120,  130,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*(*/
-  {  10, 120,  124,  114,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*)*/
-  {  1,  141,   43,  103,  200,  200,  200,  200,  200,  200,  200,  200,  200,  200}, /*=*/
-  {  31, 133,  113,  111,  141,  144,  104,  100,  140,  200,  200,  200,  200,  200}, /*@*/
-  {  2,  142,   20,  124,    4,  140,  0,    144,  200,  200,  200,  200,  200,  200}, /***/
-  {  0,  140,  144,  104,  100,   12,  113,   33,  132,   31,  111,  200,  200,  200}, /*} Smiley*/
-  {  0,  140,  144,  104,  100,   13,  222,   33,  222,   32,  131,  111,  112,  132}, /*~ Open mouth Smiley*/
-  {  20, 142,  143,  134,  123,  114,  103,  102,  120,  200,  200,  200,  200,  200} /*$ Heart*/
+    /*
+      encoding works as follows:
+      ones     = y coordinate;
+      tens     = x coordinate;
+      hundreds = draw/don't draw ..
+      200      = end
+      222      = plot point
+      !! for some reason leading zeros cause problems !!
+    */
+    {0, 124, 140, 32, 112, 200, 200, 200, 200, 200, 200, 200, 200, 200}, // my A character
+    {0, 104, 134, 132, 2, 142, 140, 100, 200, 200, 200, 200, 200, 200},
+    /*B*/                                                                   // the 2 was originally 002, not sure why
+    {41, 130, 110, 101, 103, 114, 134, 143, 200, 200, 200, 200, 200, 200},  /*C*/
+    {0, 104, 134, 143, 141, 130, 100, 200, 200, 200, 200, 200, 200, 200},   /*D*/
+    {40, 100, 104, 144, 22, 102, 200, 200, 200, 200, 200, 200, 200, 200},   /*E*/
+    {0, 104, 144, 22, 102, 200, 200, 200, 200, 200, 200, 200, 200, 200},    /*F*/
+    {44, 104, 100, 140, 142, 122, 200, 200, 200, 200, 200, 200, 200, 200},  /*G*/
+    {0, 104, 2, 142, 44, 140, 200, 200, 200, 200, 200, 200, 200, 200},      /*H*/
+    {0, 104, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*I*/
+    {1, 110, 130, 141, 144, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*J*/
+    {0, 104, 2, 142, 140, 22, 144, 200, 200, 200, 200, 200, 200, 200},      /*K*/
+    {40, 100, 104, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},  /*L*/
+    {0, 104, 122, 144, 140, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*M */
+    {0, 104, 140, 144, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*N*/
+    {10, 101, 103, 114, 134, 143, 141, 130, 110, 200, 200, 200, 200, 200},  /*O*/
+    {0, 104, 144, 142, 102, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*P*/
+    {0, 104, 144, 142, 120, 100, 22, 140, 200, 200, 200, 200, 200, 200},    /*Q*/
+    {0, 104, 144, 142, 102, 22, 140, 200, 200, 200, 200, 200, 200, 200},    /*R*/
+    {0, 140, 142, 102, 104, 144, 200, 200, 200, 200, 200, 200, 200, 200},   /*S*/
+    {20, 124, 4, 144, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},    /*T*/
+    {4, 101, 110, 130, 141, 144, 200, 200, 200, 200, 200, 200, 200, 200},   /*U*/
+    {4, 120, 144, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*V*/
+    {4, 100, 122, 140, 144, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*W*/
+    {0, 144, 4, 140, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},     /*X*/
+    {4, 122, 144, 22, 120, 200, 200, 200, 200, 200, 200, 200, 200, 200},    /*Y*/
+    {4, 144, 100, 140, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*Z*/
+    {0, 104, 144, 140, 100, 144, 200, 200, 200, 200, 200, 200, 200, 200},   /*0*/
+    {0, 140, 20, 124, 104, 200, 200, 200, 200, 200, 200, 200, 200, 200},    /*1*/
+    {4, 144, 142, 102, 100, 140, 200, 200, 200, 200, 200, 200, 200, 200},   /*2*/
+    {0, 140, 144, 104, 12, 142, 200, 200, 200, 200, 200, 200, 200, 200},    /*3*/
+    {20, 123, 42, 102, 104, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*4*/
+    {0, 140, 142, 102, 104, 144, 200, 200, 200, 200, 200, 200, 200, 200},   /*5*/
+    {2, 142, 140, 100, 104, 144, 200, 200, 200, 200, 200, 200, 200, 200},   /*6*/
+    {0, 144, 104, 12, 132, 200, 200, 200, 200, 200, 200, 200, 200, 200},    /*7*/
+    {0, 140, 144, 104, 100, 2, 142, 200, 200, 200, 200, 200, 200, 200},     /*8*/
+    {0, 140, 144, 104, 102, 142, 200, 200, 200, 200, 200, 200, 200, 200},   /*9*/
+    {200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200}, /* */
+    {200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200}, /* */
+    {0, 144, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*/*/
+    {0, 102, 124, 142, 140, 42, 102, 4, 103, 44, 143, 200, 200, 200},       /*Ä*/
+    {0, 102, 142, 140, 100, 2, 14, 113, 34, 133, 200, 200, 200, 200},       /*Ö*/
+    {4, 100, 140, 144, 14, 113, 34, 133, 200, 200, 200, 200, 200, 200},     /*Ü*/
+    {0, 111, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*,*/
+    {2, 142, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*-*/
+    {0, 222, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*.*/
+    {0, 222, 1, 104, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},     /*!*/
+    {20, 222, 21, 122, 142, 144, 104, 200, 200, 200, 200, 200, 200, 200},   /*?*/
+    {0, 104, 134, 133, 122, 142, 140, 110, 200, 200, 200, 200, 200, 200},   /*ß*/
+    {23, 124, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},  /*'*/
+    {42, 120, 100, 101, 123, 124, 104, 103, 130, 140, 200, 200, 200, 200},  /*&*/
+    {2, 142, 20, 124, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},    /*+*/
+    {21, 222, 23, 222, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*:*/
+    {10, 121, 22, 222, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*;*/
+    {14, 113, 33, 134, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},   /*"*/
+    {10, 114, 34, 130, 41, 101, 3, 143, 200, 200, 200, 200, 200, 200},      /*#*/
+    {34, 124, 120, 130, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},  /*(*/
+    {10, 120, 124, 114, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},  /*)*/
+    {1, 141, 43, 103, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200},    /*=*/
+    {31, 133, 113, 111, 141, 144, 104, 100, 140, 200, 200, 200, 200, 200},  /*@*/
+    {2, 142, 20, 124, 4, 140, 0, 144, 200, 200, 200, 200, 200, 200},        /***/
+    {0, 140, 144, 104, 100, 12, 113, 33, 132, 31, 111, 200, 200, 200},      /*} Smiley*/
+    {0, 140, 144, 104, 100, 13, 222, 33, 222, 32, 131, 111, 112, 132},      /*~ Open mouth Smiley*/
+    {20, 142, 143, 134, 123, 114, 103, 102, 120, 200, 200, 200, 200, 200}   /*$ Heart*/
 };
 #pragma endregion CHARACTER VECTORS
 
 #pragma region BT values
-#define SERVICE_UUID        "12345678-1234-5678-1234-56789abcdef0"
+#define SERVICE_UUID "12345678-1234-5678-1234-56789abcdef0"
 #define CHARACTERISTIC_UUID "87654321-4321-8765-4321-87654321fedc"
+// Additional Notify characteristic for device -> client status updates
+#define STATUS_CHARACTERISTIC_UUID "5f4e3d2c-1b0a-0908-0706-050403020100"
 
 String BTtext = "";
 #define BTDeviceName "LABEL MAKER"
 
-NimBLEServer* pServer = NULL;
-NimBLECharacteristic* pCharacteristic = NULL;
+NimBLEServer *pServer = NULL;
+NimBLECharacteristic *pCharacteristic = NULL;
+NimBLECharacteristic *pStatusCharacteristic = NULL;       // notify-only
 bool deviceConnected = false;
 
 // Chunked G-code transfer state (for BLE 512-byte write limit)
 static String gcode_chunk_buffer;
 static bool gcode_chunk_active = false;
 
-class MyServerCallbacks : public NimBLEServerCallbacks {
-    void onConnect(NimBLEServer* pServer) {
-        deviceConnected = true;
-        Serial.println("Device connected via BLE");
+class MyServerCallbacks : public NimBLEServerCallbacks
+{
+  void onConnect(NimBLEServer *pServer)
+  {
+    deviceConnected = true;
+    Serial.println("Device connected via BLE");
+    // Report device status on connect
+    if (pStatusCharacteristic)
+    {
+      std::string s = std::string("Connected");
+      pStatusCharacteristic->setValue(s);
+  pStatusCharacteristic->notify();
     }
+  }
 
-    void onDisconnect(NimBLEServer* pServer) {
-        deviceConnected = false;
-        Serial.println("Device disconnected via BLE. Restarting advertising...");
+  void onDisconnect(NimBLEServer *pServer)
+  {
+    deviceConnected = false;
+    Serial.println("Device disconnected via BLE. Restarting advertising...");
+    if (pStatusCharacteristic)
+    {
+      std::string s = std::string("Disconnected");
+      pStatusCharacteristic->setValue(s);
+  pStatusCharacteristic->notify();
     }
+  }
 };
 
-void readBTCmd() {
+void readBTCmd()
+{
   std::string value = pCharacteristic->getValue();
-  if (value.length() > 0) {
-      BTtext = String(value.c_str());
-      Serial.print("Received raw value: ");
-      for (int i = 0; i < value.length(); i++) {
-          Serial.print(value[i]);
+  if (value.length() > 0)
+  {
+    BTtext = String(value.c_str());
+    Serial.print("Received raw value: ");
+    for (int i = 0; i < value.length(); i++)
+    {
+      Serial.print(value[i]);
+    }
+    Serial.println();
+
+    Serial.print("Received BTtext string: ");
+    Serial.println(BTtext);
+
+    // Command parsing
+    int firstComma = BTtext.indexOf(',');
+    if (firstComma != -1)
+    {
+      String command = BTtext.substring(0, firstComma);
+      String params = BTtext.substring(firstComma + 1);
+
+      if (command.equalsIgnoreCase("print-text"))
+      {
+        text = params;
+        currentState = Printing;
+        prevState = PrintConfirmation;
+        Serial.println("Received print-text command. Starting print.");
+  screenLocked = true; // lock LCD for printing
+  // Progress: 0% at start
+  bleNotify("Printing (text): 0%");
+  lcdShowProgress(0);
       }
-      Serial.println();
-
-      Serial.print("Received BTtext string: ");
-      Serial.println(BTtext);
-
-  // Command parsing
-      int firstComma = BTtext.indexOf(',');
-      if (firstComma != -1) {
-          String command = BTtext.substring(0, firstComma);
-          String params = BTtext.substring(firstComma + 1);
-
-          if (command.equalsIgnoreCase("print-text")) {
-              text = params;
-              currentState = Printing;
-              prevState = PrintConfirmation;
-              Serial.println("Received print-text command. Starting print.");
-          } else if (command.equalsIgnoreCase("cancel")) {
-              text = "";
-              currentState = MainMenu;
-              prevState = Printing;
-              Serial.println("Received cancel command. Returning to main menu.");
-          } else if (command.equalsIgnoreCase("pen-up")) {
-              penUp();
-              Serial.println("Received pen-up command.");
-          } else if (command.equalsIgnoreCase("pen-down")) {
-              penDown();
-              Serial.println("Received pen-down command.");
-          } else if (command.equalsIgnoreCase("print-raw")) {
-            // params contains raw G-code program. Execute immediately.
-            Serial.println("Received print-raw command. Executing G-code...");
-            executeRawGCode(params);
-          } else if (command.equalsIgnoreCase("print-raw-begin")) {
-            // Start chunked transfer
-            Serial.println("Starting chunked G-code transfer");
-            gcode_chunk_buffer = "";
-            gcode_chunk_buffer.reserve(2048); // pre-allocate some space
-            gcode_chunk_active = true;
-          } else if (command.equalsIgnoreCase("print-raw-data")) {
-            // Append chunk to buffer
-            if (gcode_chunk_active) {
-              gcode_chunk_buffer += params;
-            } else {
-              Serial.println("print-raw-data received without begin; ignoring chunk.");
-            }
-          } else if (command.equalsIgnoreCase("print-raw-end")) {
-            // End chunked transfer and execute
-            if (gcode_chunk_active) {
-              Serial.print("Executing chunked G-code, size=");
-              Serial.println(gcode_chunk_buffer.length());
-              executeRawGCode(gcode_chunk_buffer);
-            } else {
-              Serial.println("print-raw-end without begin; ignoring.");
-            }
-            gcode_chunk_buffer = "";
-            gcode_chunk_active = false;
-          }
-      } else {
-          Serial.println("Received command without a comma separator. Ignoring.");
+      else if (command.equalsIgnoreCase("cancel"))
+      {
+        text = "";
+        currentState = MainMenu;
+        prevState = Printing;
+        Serial.println("Received cancel command. Returning to main menu.");
       }
+      else if (command.equalsIgnoreCase("pen-up"))
+      {
+        penUp();
+        Serial.println("Received pen-up command.");
+      }
+      else if (command.equalsIgnoreCase("pen-down"))
+      {
+        penDown();
+        Serial.println("Received pen-down command.");
+      }
+      else if (command.equalsIgnoreCase("print-raw"))
+      {
+        // params contains raw G-code program. Execute immediately.
+        Serial.println("Received print-raw command. Executing G-code...");
+  screenLocked = true; // lock LCD for printing
+  // Progress: 0% at start
+  bleNotify("Printing (raw): 0%");
+  lcdShowProgress(0);
+        executeRawGCode(params);
+      }
+      else if (command.equalsIgnoreCase("print-raw-begin"))
+      {
+        // Start chunked transfer
+        Serial.println("Starting chunked G-code transfer");
+        gcode_chunk_buffer = "";
+        gcode_chunk_buffer.reserve(2048); // pre-allocate some space
+        gcode_chunk_active = true;
+  screenLocked = true; // lock LCD for printing
+  // Prepare progress view
+  bleNotify("Printing (raw): 0%");
+  lcdShowProgress(0);
+      }
+      else if (command.equalsIgnoreCase("print-raw-data"))
+      {
+        // Append chunk to buffer
+        if (gcode_chunk_active)
+        {
+          gcode_chunk_buffer += params;
+        }
+        else
+        {
+          Serial.println("print-raw-data received without begin; ignoring chunk.");
+        }
+      }
+      else if (command.equalsIgnoreCase("print-raw-end"))
+      {
+        // End chunked transfer and execute
+        if (gcode_chunk_active)
+        {
+          Serial.print("Executing chunked G-code, size=");
+          Serial.println(gcode_chunk_buffer.length());
+          executeRawGCode(gcode_chunk_buffer);
+        }
+        else
+        {
+          Serial.println("print-raw-end without begin; ignoring.");
+        }
+        gcode_chunk_buffer = "";
+        gcode_chunk_active = false;
+      }
+    }
+    else
+    {
+      Serial.println("Received command without a comma separator. Ignoring.");
+    }
 
-      pCharacteristic->setValue("");
+    pCharacteristic->setValue("");
   }
 }
 
-class MyCallbacks : public NimBLECharacteristicCallbacks {
-    void onWrite(NimBLECharacteristic* pCharacteristic) {
-        Serial.println("onWrite callback triggered.");
-        readBTCmd();
-    }
+class MyCallbacks : public NimBLECharacteristicCallbacks
+{
+  void onWrite(NimBLECharacteristic *pCharacteristic)
+  {
+    Serial.println("onWrite callback triggered.");
+    readBTCmd();
+  }
 };
 
 #pragma endregion BT values
 
 //////////////////////////////////////////////////
-              //  S E T U P  //
+//  S E T U P  //
 //////////////////////////////////////////////////
 #pragma region SETUP
-void bleSetup() {
-    NimBLEDevice::init(BTDeviceName);
-    pServer = NimBLEDevice::createServer();
-    pServer->setCallbacks(new MyServerCallbacks());
-    NimBLEService* pService = pServer->createService(SERVICE_UUID);
-    // Check if the service was created successfully
-    if (pService == NULL) {
-        Serial.println("Failed to create BLE service!");
-        return; // Exit setup if failed
-    }
-    pCharacteristic = pService->createCharacteristic(
-        CHARACTERISTIC_UUID,
-        NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY
-    );
-    // Check if the characteristic was created successfully
-    if (pCharacteristic == NULL) {
-        Serial.println("Failed to create BLE characteristic!");
-        return; // Exit setup if failed
-    }
-    pCharacteristic->setCallbacks(new MyCallbacks());
-    pService->start();
-  NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
+void bleSetup()
+{
+  NimBLEDevice::init(BTDeviceName);
+  pServer = NimBLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
+  NimBLEService *pService = pServer->createService(SERVICE_UUID);
+  // Check if the service was created successfully
+  if (pService == NULL)
+  {
+    Serial.println("Failed to create BLE service!");
+    return; // Exit setup if failed
+  }
+  pCharacteristic = pService->createCharacteristic(
+      CHARACTERISTIC_UUID,
+      NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
+  // Check if the characteristic was created successfully
+  if (pCharacteristic == NULL)
+  {
+    Serial.println("Failed to create BLE characteristic!");
+    return; // Exit setup if failed
+  }
+  // Create a notify-only status characteristic
+  pStatusCharacteristic = pService->createCharacteristic(
+      STATUS_CHARACTERISTIC_UUID,
+      NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ);
+  if (pStatusCharacteristic == NULL)
+  {
+    Serial.println("Failed to create status characteristic!");
+    return;
+  }
+  pCharacteristic->setCallbacks(new MyCallbacks());
+  pService->start();
+  NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
   // Primary advertising: keep it small and include the device name so most scanners show it.
   NimBLEAdvertisementData advData;
-  advData.setName(BTDeviceName);       // put the name in the primary ADV packet
-  advData.setFlags(0x06);              // LE General Discoverable + BR/EDR Not Supported
+  advData.setName(BTDeviceName); // put the name in the primary ADV packet
+  advData.setFlags(0x06);        // LE General Discoverable + BR/EDR Not Supported
   pAdvertising->setAdvertisementData(advData);
 
   // Scan response: include the 128-bit service UUID here (it’s large and can crowd out the name in ADV)
@@ -360,53 +474,76 @@ void bleSetup() {
   // Start advertising
   pAdvertising->start();
   Serial.println("BLE advertising started.");
+  // Initial status
+  if (pStatusCharacteristic)
+  {
+    std::string s = std::string("Advertising");
+    pStatusCharacteristic->setValue(s);
+    pStatusCharacteristic->notify();
+  }
 }
 
-void setup() {
+static void bleNotify(const String &msg)
+{
+  if (!pStatusCharacteristic)
+    return;
+  std::string s(msg.c_str());
+  pStatusCharacteristic->setValue(s);
+  pStatusCharacteristic->notify();
+}
+
+static void notifyProgress(const char *mode, int processed, int total)
+{
+  int pct = (total > 0) ? (processed * 100) / total : 0;
+  String payload = String("Printing (") + String(mode) + "): " + String(pct) + "%";
+  bleNotify(payload);
+}
+
+void setup()
+{
   lcd.init();
   lcd.backlight();
 
   lcd.setCursor(0, 0);
-  lcd.print(INIT_MSG);  // print start up message
+  lcd.print(INIT_MSG); // print start up message
   bleSetup();
+  bleNotify("Ready");
   pinMode(LED_BUILTIN, OUTPUT);
   analogReadResolution(10);
 
   Serial.begin(9600);
 
-  button1.setDebounceTime(50);  //debounce prevents the joystick button from triggering twice when clicked
+  button1.setDebounceTime(50); // debounce prevents the joystick button from triggering twice when clicked
 
-  servo.attach(SERVO_PIN);  // attaches the servo on pin 9 to the servo object
+  servo.attach(SERVO_PIN); // attaches the servo on pin 9 to the servo object
   servo.write(angle);
 
-  plot(false);  //servo to tape surface so pen can be inserted
+  plot(false); // servo to tape surface so pen can be inserted
 
   // set the speed of the motors
-  yStepper.setSpeed(12);  // set first stepper speed (these should stay the same)
-  xStepper.setSpeed(10);  // set second stepper speed (^ weird stuff happens when you push it too fast)
+  yStepper.setSpeed(12); // set first stepper speed (these should stay the same)
+  xStepper.setSpeed(10); // set second stepper speed (^ weird stuff happens when you push it too fast)
 
-  penUp();      //ensure that the servo is lifting the pen carriage away from the tape
-  homeYAxis();  //lower the Y axis all the way to the bottom
+  penUp();     // ensure that the servo is lifting the pen carriage away from the tape
+  homeYAxis(); // lower the Y axis all the way to the bottom
 
   ypos = 0;
   xpos = 0;
 
   releaseMotors();
   lcd.clear();
-
-  
 }
 #pragma endregion SETUP
 
 //////////////////////////////////////////////////
-                //  L O O P  //
+//  L O O P  //
 //////////////////////////////////////////////////
 #pragma region LOOP
-void loop() {
+void loop()
+{
 
   button1.loop();
   button1State = button1.getState();
-
 
   joystickX = analogRead(joystickXPin) + joystickButtonOffset;
   joystickY = analogRead(joystickYPin) + joystickButtonOffset;
@@ -431,238 +568,313 @@ void loop() {
   // Serial.println(joyRight);
 
   // Restart advertising if disconnected
-  if (NimBLEDevice::getServer()->getConnectedCount() < 1) {
-    if (!NimBLEDevice::getAdvertising()->isAdvertising()) {
+  if (NimBLEDevice::getServer()->getConnectedCount() < 1)
+  {
+    if (!NimBLEDevice::getAdvertising()->isAdvertising())
+    {
       NimBLEDevice::startAdvertising();
       Serial.println("Restarting BLE advertising");
+      bleNotify("Advertising");
     }
   }
+
 
   readBTCmd();
 
   // Handle BT commands if a new command has been received
-  if (BTtext.length() > 0) {
+  if (BTtext.length() > 0)
+  {
     // Process BT command (already handled in MyCallbacks::onWrite)
     // Clear the BTtext variable to indicate command has been processed
     Serial.println("BT Value:");
     Serial.println(BTtext);
     BTtext = "";
   }
-
-  if (text.length() > 0) {
+  if (text.length() > 0)
+  {
     // Process BT command (already handled in MyCallbacks::onWrite)
     // Clear the BTtext variable to indicate command has been processed
     Serial.println("Value:");
     Serial.println(text);
   }
 
-  switch (currentState) {  //state machine that determines what to do with the input controls based on what mode the device is in
+  switch (currentState)
+  { // state machine that determines what to do with the input controls based on what mode the device is in
 
-    case MainMenu:
-      {
-        if (prevState != MainMenu) {
-          lcd.clear();
-          lcd.setCursor(0, 0);
-          lcd.print(MODE_NAME);
-          lcd.setCursor(0, 1);
-          lcd.print("      START     ");
-          cursorPosition = 5;
-          prevState = MainMenu;
-        }
+  case MainMenu:
+  {
+  if (screenLocked) { break; } // avoid overwriting progress screen
+    if (prevState != MainMenu)
+    {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print(MODE_NAME);
+      lcd.setCursor(0, 1);
+      lcd.print("      START     ");
+      cursorPosition = 5;
+      prevState = MainMenu;
+    }
 
-        lcd.setCursor(cursorPosition, 1);
+    lcd.setCursor(cursorPosition, 1);
 
-        if (millis() % 600 < 400) {  // Blink every 500 ms
-          lcd.print(">");
-        } else {
-          lcd.print(" ");
-        }
+    if (millis() % 600 < 400)
+    { // Blink every 500 ms
+  lcd.print(">");
+    }
+    else
+    {
+      lcd.print(" ");
+    }
 
-        if (button1.isPressed()) {  //handles clicking options in text size setting
-          lcd.clear();
-          currentState = Editing;
-          prevState = MainMenu;
-        }
-      }
-      break;
+    if (button1.isPressed())
+    { // handles clicking options in text size setting
+      lcd.clear();
+      currentState = Editing;
+      prevState = MainMenu;
+    }
+  }
+  break;
 
-    case Editing:  //in the editing mode, joystick directional input adds and removes characters from the string, while up and down changes characters
-      //pressing the joystick button will switch the device into the Print Confirmation mode
+  case Editing: // in the editing mode, joystick directional input adds and removes characters from the string, while up and down changes characters
+    // pressing the joystick button will switch the device into the Print Confirmation mode
 
-      // Editing mode
-      if (prevState != Editing) {
-        lcd.clear();
-        prevState = Editing;
-      }
-      //lcd.clear();
+    // Editing mode
+    if (prevState != Editing)
+    {
+      if (!screenLocked) lcd.clear();
+      prevState = Editing;
+    }
+    if (!screenLocked) {
+      // lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print(":");
       lcd.setCursor(1, 0);
       lcd.print(text);
+    }
 
-      Serial.println("Current text");
-      Serial.println(text);
+    Serial.println("Current text");
+    Serial.println(text);
 
-      // Check if the joystick is moved up (previous letter) or down (next letter)
+    // Check if the joystick is moved up (previous letter) or down (next letter)
 
-      if (joyUp) {  //UP (previous character)
-        Serial.println(currentCharacter);
-        if (currentCharacter > 0) {
-          currentCharacter--;
+    if (joyUp)
+    { // UP (previous character)
+      Serial.println(currentCharacter);
+      if (currentCharacter > 0)
+      {
+        currentCharacter--;
+        lcd.print(alphabet[currentCharacter]);
+        // Serial.println("Character UP");
+      }
+      delay(250); // Delay to prevent rapid scrolling
+    }
+    else if (joyDown)
+    { // DOWN (next character)
+      Serial.println(currentCharacter);
+      if (currentCharacter < (alphabetSize - 1))
+      {
+        currentCharacter++; // increment character value
+        lcd.print(alphabet[currentCharacter]);
+        // Serial.println("Character DOWN");
+      }
+      delay(250); // Delay to prevent rapid scrolling
+    }
+    else
+    {
+      if (!screenLocked) {
+        if (millis() % 600 < 450)
+        {
           lcd.print(alphabet[currentCharacter]);
-          //Serial.println("Character UP");
         }
-        delay(250);  // Delay to prevent rapid scrolling
-
-      } else if (joyDown) {  //DOWN (next character)
-        Serial.println(currentCharacter);
-        if (currentCharacter < (alphabetSize - 1)) {
-          currentCharacter++;  //increment character value
-          lcd.print(alphabet[currentCharacter]);
-          //Serial.println("Character DOWN");
-        }
-        delay(250);  // Delay to prevent rapid scrolling
-      } else {
-        if (millis() % 600 < 450) {
-          lcd.print(alphabet[currentCharacter]);
-        } else {
+        else
+        {
           lcd.print(" ");
         }
       }
+    }
 
-      // Check if the joystick is moved left (backspace) or right (add space)
-      if (joyLeft) {
-        // LEFT (backspace)
-        if (text.length() > 0) {
-          text.remove(text.length() - 1);
+    // Check if the joystick is moved left (backspace) or right (add space)
+    if (joyLeft)
+    {
+      // LEFT (backspace)
+      if (text.length() > 0)
+      {
+        text.remove(text.length() - 1);
+        if (!screenLocked) {
           lcd.setCursor(0, 0);
-          lcd.print(MENU_CLEAR);  //clear and reprint the string so characters dont hang
+          lcd.print(MENU_CLEAR); // clear and reprint the string so characters dont hang
           lcd.setCursor(1, 0);
           lcd.print(text);
         }
-        delay(250);  // Delay to prevent rapid multiple presses
-
-      } else if (joyRight) {  //RIGHT adds a space or character to the label
-        if (currentCharacter == 0) {
-          text += ' ';  //add a space if the character is _
-        } else {
-          text += alphabet[currentCharacter];  //add the current character to the text
-          currentCharacter = 0;
-        }
-        delay(250);  // Delay to prevent rapid multiple presses
       }
-
-      if (button1.isPressed()) {
-        // Single click: Add character and reset alphabet scroll
-        if (currentCharacter == 0) {
-          text += ' ';  //add a space if the character is _
-        } else {
-          text += alphabet[currentCharacter];  //add the current character to the text
-          currentCharacter = 0;                // reset for the next character
-        }
-        lcd.clear();
-        currentState = PrintConfirmation;
-        prevState = Editing;
+      delay(250); // Delay to prevent rapid multiple presses
+    }
+    else if (joyRight)
+    { // RIGHT adds a space or character to the label
+      if (currentCharacter == 0)
+      {
+        text += ' '; // add a space if the character is _
       }
+      else
+      {
+        text += alphabet[currentCharacter]; // add the current character to the text
+        currentCharacter = 0;
+      }
+      delay(250); // Delay to prevent rapid multiple presses
+    }
 
-      break;
+    if (button1.isPressed())
+    {
+      // Single click: Add character and reset alphabet scroll
+      if (currentCharacter == 0)
+      {
+        text += ' '; // add a space if the character is _
+      }
+      else
+      {
+        text += alphabet[currentCharacter]; // add the current character to the text
+        currentCharacter = 0;               // reset for the next character
+      }
+      if (!screenLocked) lcd.clear();
+      currentState = PrintConfirmation;
+      prevState = Editing;
+    }
 
-    case PrintConfirmation:
-      // Print confirmation mode
-      if (prevState == Editing) {
-        lcd.setCursor(0, 0);    //move cursor to the first line
-        lcd.print(PRINT_CONF);  //print menu text
-        lcd.setCursor(0, 1);    // move cursor to the second line
-        lcd.print("   YES     NO   ");
-        lcd.setCursor(2, 1);
-        cursorPosition = 2;
+    break;
+
+  case PrintConfirmation:
+    // Print confirmation mode
+    if (screenLocked) { break; }
+    if (prevState == Editing)
+    {
+      lcd.setCursor(0, 0);   // move cursor to the first line
+      lcd.print(PRINT_CONF); // print menu text
+      lcd.setCursor(0, 1);   // move cursor to the second line
+      lcd.print("   YES     NO   ");
+      lcd.setCursor(2, 1);
+      cursorPosition = 2;
+      prevState = PrintConfirmation;
+    }
+
+    // the following two if statements help move the blinking cursor from one option to the other.
+    if (joyLeft)
+    { // left
+      lcd.setCursor(0, 1);
+      lcd.print("   YES     NO   ");
+      lcd.setCursor(2, 1);
+      cursorPosition = 2;
+      delay(200);
+    }
+    else if (joyRight)
+    { // right
+      lcd.setCursor(0, 1);
+      lcd.print("   YES     NO   ");
+      lcd.setCursor(10, 1);
+      cursorPosition = 10;
+      delay(200);
+    }
+
+    lcd.setCursor(cursorPosition, 1);
+
+    if (millis() % 600 < 400)
+    { // Blink every 500 ms
+      lcd.print(">");
+    }
+    else
+    {
+      lcd.print(" ");
+    }
+
+    if (button1.isPressed())
+    { // handles clicking options in print confirmation
+      if (cursorPosition == 2)
+      { // proceed to printing if clicking yes
+    if (!screenLocked) lcd.clear();
+        currentState = Printing;
         prevState = PrintConfirmation;
       }
-
-      //the following two if statements help move the blinking cursor from one option to the other.
-      if (joyLeft) {  //left
-        lcd.setCursor(0, 1);
-        lcd.print("   YES     NO   ");
-        lcd.setCursor(2, 1);
-        cursorPosition = 2;
-        delay(200);
-      } else if (joyRight) {  //right
-        lcd.setCursor(0, 1);
-        lcd.print("   YES     NO   ");
-        lcd.setCursor(10, 1);
-        cursorPosition = 10;
-        delay(200);
+      else if (cursorPosition == 10)
+      { // return to editing if you click no
+    if (!screenLocked) lcd.clear();
+        currentState = Editing;
+        prevState = PrintConfirmation;
       }
+    }
 
-      lcd.setCursor(cursorPosition, 1);
+    break;
 
-      if (millis() % 600 < 400) {  // Blink every 500 ms
-        lcd.print(">");
-      } else {
-        lcd.print(" ");
-      }
+  case Printing:
+    // Printing mode
+    if (prevState == PrintConfirmation)
+    {
+  screenLocked = true; // ensure LCD reserved when starting from UI
+      lcd.setCursor(0, 0);
+      lcd.print(PRINTING); // initial header; will be overwritten with progress
+      lcd.setCursor(0, 1);
+      lcd.print(text);
+  // Initialize progress at 0%
+  lcdShowProgress(0);
+  bleNotify("Printing (text): 0%");
+    }
 
-      if (button1.isPressed()) {    //handles clicking options in print confirmation
-        if (cursorPosition == 2) {  //proceed to printing if clicking yes
-          lcd.clear();
-          currentState = Printing;
-          prevState = PrintConfirmation;
+    // ----------------------------------------------- plot text
+    plotText(text, xpos, ypos);
 
-        } else if (cursorPosition == 10) {  //return to editing if you click no
-          lcd.clear();
-          currentState = Editing;
-          prevState = PrintConfirmation;
-        }
-      }
+    line(xpos + space, 0, 0); // move to new line
+    xpos = 0;
+    ypos = 0;
 
-      break;
+    text = "";
+    yStepper.step(-2250);
+    releaseMotors();
+    bleNotify("Ready");
+  lcd.clear();
+  screenLocked = false; // unlock LCD after printing completes
+    currentState = Editing;
+    prevState = Printing;
 
-    case Printing:
-      // Printing mode
-      if (prevState == PrintConfirmation) {
-        lcd.setCursor(0, 0);
-        lcd.print(PRINTING);  //update screen
-        lcd.setCursor(0, 1);
-        lcd.print(text);
-      }
-
-      // ----------------------------------------------- plot text
-      plotText(text, xpos, ypos);
-
-      line(xpos + space, 0, 0);  // move to new line
-      xpos = 0;
-      ypos = 0;
-
-      text = "";
-      yStepper.step(-2250);
-      releaseMotors();
-      lcd.clear();
-      currentState = Editing;
-      prevState = Printing;
-
-      break;
+    break;
   }
 }
 #pragma endregion LOOP
 
 //////////////////////////////////////////////////
-              // FUNCTIONS  //
+// FUNCTIONS  //
 //////////////////////////////////////////////////
 #pragma region FUNCTIONS
-void plotText(String &str, int x, int y) {  //takes in our label as a string, and breaks it up by character for plotting
+void plotText(String &str, int x, int y)
+{ // takes in our label as a string, and breaks it up by character for plotting
   int pos = 0;
   Serial.println("plot string");
   Serial.println(str);
-  for (int i = 0; i < str.length(); i++) {  //for each letter in the string (expressed as "while i is less than string length")
-    char c = char(str.charAt(i));           //store the next character to plot on it's own
-    if (byte(c) != 195) {
-      if (c == ' ') {  //if it's a space, add a space.
+  // Initial progress at 0%
+  notifyProgress("text", 0, str.length());
+  if (currentState == Printing) { lcdShowProgress(0); }
+  for (int i = 0; i < str.length(); i++)
+  {                               // for each letter in the string (expressed as "while i is less than string length")
+    char c = char(str.charAt(i)); // store the next character to plot on it's own
+    if (byte(c) != 195)
+    {
+      if (c == ' ')
+      { // if it's a space, add a space.
         pos += space;
-      } else {
+      }
+      else
+      {
         plotCharacter(c, x + pos, y);
-        pos += space;  //scale is multiplied by 4 here to convert it to steps (because it normally get's multiplied by a coordinate with a max of 4)
-        if (c == 'I' || c == 'i') pos -= (scale * 4) / 1.1;
-        if (c == ',') pos -= (scale * 4) / 1.2;
+        pos += space; // scale is multiplied by 4 here to convert it to steps (because it normally get's multiplied by a coordinate with a max of 4)
+        if (c == 'I' || c == 'i')
+          pos -= (scale * 4) / 1.1;
+        if (c == ',')
+          pos -= (scale * 4) / 1.2;
+      }
+      // progress notify per character processed
+      notifyProgress("text", i + 1, str.length());
+      // Update LCD progress if printing
+      if (currentState == Printing)
+      {
+        int pct = ((i + 1) * 100) / str.length();
+        lcdShowProgress(pct);
       }
     }
   }
@@ -670,128 +882,162 @@ void plotText(String &str, int x, int y) {  //takes in our label as a string, an
   releaseMotors();
 }
 
-void plotCharacter(char c, int x, int y) {  //this receives info from plotText for which character to plot,
+void plotCharacter(char c, int x, int y)
+{ // this receives info from plotText for which character to plot,
   // first it does some logic to make specific tweaks depending on the character, so some characters need more space, others less,
   // and some we even want to swap (in the case of space, we're swapping _ (underscore) and space so that we have something to show on the screen)
 
   // and once we've got it all worked out right, this function passes the coordinates from that character though line() function to draw it
 
-  Serial.print(uint8_t(c));  //print the received character to monitor
+  Serial.print(uint8_t(c)); // print the received character to monitor
   Serial.print(">");
 
-  //the following if statements handle character specific changes by shifting / swapping prior to drawing
+  // the following if statements handle character specific changes by shifting / swapping prior to drawing
   uint8_t character = 38;
-  if (uint8_t(c) > 64 and uint8_t(c) < 91) {  //A...Z
+  if (uint8_t(c) > 64 and uint8_t(c) < 91)
+  { // A...Z
     character = uint8_t(c) - 65;
   }
-  if (uint8_t(c) > 96 and uint8_t(c) < 123) {  //A...Z
+  if (uint8_t(c) > 96 and uint8_t(c) < 123)
+  { // A...Z
     character = uint8_t(c) - 97;
   }
-  if (uint8_t(c) > 47 and uint8_t(c) < 58) {  //0...9
+  if (uint8_t(c) > 47 and uint8_t(c) < 58)
+  { // 0...9
     character = uint8_t(c) - 22;
   }
-  if (uint8_t(c) == 164 || uint8_t(c) == 132) {  //ä,Ä
+  if (uint8_t(c) == 164 || uint8_t(c) == 132)
+  { // ä,Ä
     character = 39;
   }
-  if (uint8_t(c) == 182 || uint8_t(c) == 150) {  //ö,Ö
+  if (uint8_t(c) == 182 || uint8_t(c) == 150)
+  { // ö,Ö
     character = 40;
   }
-  if (uint8_t(c) == 188 || uint8_t(c) == 156) {  //ü,Ü
+  if (uint8_t(c) == 188 || uint8_t(c) == 156)
+  { // ü,Ü
     character = 41;
   }
-  if (uint8_t(c) == 44) {  // ,
+  if (uint8_t(c) == 44)
+  { // ,
     character = 42;
   }
-  if (uint8_t(c) == 45) {  // -
+  if (uint8_t(c) == 45)
+  { // -
     character = 43;
   }
-  if (uint8_t(c) == 46) {  // .
+  if (uint8_t(c) == 46)
+  { // .
     character = 44;
   }
-  if (uint8_t(c) == 33) {  // !
+  if (uint8_t(c) == 33)
+  { // !
     character = 45;
   }
-  if (uint8_t(c) == 63) {  // ?
+  if (uint8_t(c) == 63)
+  { // ?
     character = 46;
   }
-  if (uint8_t(c) == 123) { /*{ ß*/
+  if (uint8_t(c) == 123)
+  { /*{ ß*/
     character = 47;
   }
-  if (uint8_t(c) == 39) { /*'*/
+  if (uint8_t(c) == 39)
+  { /*'*/
     character = 48;
   }
-  if (uint8_t(c) == 38) { /*&*/
+  if (uint8_t(c) == 38)
+  { /*&*/
     character = 49;
   }
-  if (uint8_t(c) == 43) { /*+*/
+  if (uint8_t(c) == 43)
+  { /*+*/
     character = 50;
   }
-  if (uint8_t(c) == 58) { /*:*/
+  if (uint8_t(c) == 58)
+  { /*:*/
     character = 51;
   }
-  if (uint8_t(c) == 59) { /*;*/
+  if (uint8_t(c) == 59)
+  { /*;*/
     character = 52;
   }
-  if (uint8_t(c) == 34) { /*"*/
+  if (uint8_t(c) == 34)
+  { /*"*/
     character = 53;
   }
-  if (uint8_t(c) == 35) { /*#*/
+  if (uint8_t(c) == 35)
+  { /*#*/
     character = 54;
   }
-  if (uint8_t(c) == 40) { /*(*/
+  if (uint8_t(c) == 40)
+  { /*(*/
     character = 55;
   }
-  if (uint8_t(c) == 41) { /*)*/
+  if (uint8_t(c) == 41)
+  { /*)*/
     character = 56;
   }
-  if (uint8_t(c) == 61) { /*=*/
+  if (uint8_t(c) == 61)
+  { /*=*/
     character = 57;
   }
-  if (uint8_t(c) == 64) { /*@*/
+  if (uint8_t(c) == 64)
+  { /*@*/
     character = 58;
   }
-  if (uint8_t(c) == 42) { /***/
+  if (uint8_t(c) == 42)
+  { /***/
     character = 59;
   }
-  if (uint8_t(c) == 125) { /*} Smiley*/
+  if (uint8_t(c) == 125)
+  { /*} Smiley*/
     character = 60;
   }
-  if (uint8_t(c) == 126) { /*~ Open mouth Smiley*/
+  if (uint8_t(c) == 126)
+  { /*~ Open mouth Smiley*/
     character = 61;
   }
-  if (uint8_t(c) == 36) { /*$ Heart*/
+  if (uint8_t(c) == 36)
+  { /*$ Heart*/
     character = 62;
   }
   Serial.print("letter: ");
   Serial.println(c);
-  for (int i = 0; i < 14; i++) {  // go through each vector of the character
+  for (int i = 0; i < 14; i++)
+  { // go through each vector of the character
 
     int v = vector[character][i];
-    if (v == 200) {  // no more vectors in this array
+    if (v == 200)
+    { // no more vectors in this array
 
       break;
     }
-    if (v == 222) {  // plot single point
+    if (v == 222)
+    { // plot single point
       plot(true);
       delay(50);
       plot(false);
-    } else {
+    }
+    else
+    {
       int draw = 0;
-      if (v > 99) {
+      if (v > 99)
+      {
         draw = 1;
         v -= 100;
       }
-      int cx = v / 10;       // get x ...
-      int cy = v - cx * 10;  // and y
+      int cx = v / 10;      // get x ...
+      int cy = v - cx * 10; // and y
 
-      //if(cx > 0) cx = 1;
+      // if(cx > 0) cx = 1;
 
       // 1: Normalize
       int x_start = x;
       int x_end = x + cx * x_scale;
       int y_start = y;
-      int y_end = y + cy * y_scale * 3.5;  //we multiply by 3.5 here to equalize the Y output to match X,
-      //this is because the Y lead screw covers less distance per-step than the X motor wheel (about 3.5 times less haha)
+      int y_end = y + cy * y_scale * 3.5; // we multiply by 3.5 here to equalize the Y output to match X,
+      // this is because the Y lead screw covers less distance per-step than the X motor wheel (about 3.5 times less haha)
       bool switched = false;
 
       Serial.print("Scale: ");
@@ -811,43 +1057,50 @@ void plotCharacter(char c, int x, int y) {  //this receives info from plotText f
   }
 }
 
-void line(int newx, int newy, bool drawing) {
-  //this function is an implementation of bresenhams line algorithm
-  //this algorithm basically finds the slope between any two points, allowing us to figure out how many steps each motor should do to move smoothly to the target
-  //in order to do this, we give this function our next X (newx) and Y (newy) coordinates, and whether the pen should be up or down (drawing)
+void line(int newx, int newy, bool drawing)
+{
+  // this function is an implementation of bresenhams line algorithm
+  // this algorithm basically finds the slope between any two points, allowing us to figure out how many steps each motor should do to move smoothly to the target
+  // in order to do this, we give this function our next X (newx) and Y (newy) coordinates, and whether the pen should be up or down (drawing)
 
-  if (drawing < 2) {  //checks if we should be drawing and puts the pen up or down based on that.
-    plot(drawing);    // dashed: 0= don't draw / 1=draw / 2... = draw dashed with variable dash width
-  } else {
-    plot((stepCount / drawing) % 2);  //can do dashed lines, but for now this isn't doing anything since we're only sending 0 or 1.
+  if (drawing < 2)
+  {                // checks if we should be drawing and puts the pen up or down based on that.
+    plot(drawing); // dashed: 0= don't draw / 1=draw / 2... = draw dashed with variable dash width
+  }
+  else
+  {
+    plot((stepCount / drawing) % 2); // can do dashed lines, but for now this isn't doing anything since we're only sending 0 or 1.
   }
 
   int i;
   long over = 0;
 
-  long dx = newx - xpos;  //calculate the difference between where we are (xpos) and where we want to be (newx)
+  long dx = newx - xpos; // calculate the difference between where we are (xpos) and where we want to be (newx)
   long dy = newy - ypos;
-  int dirx = dx > 0 ? -1 : 1;  //this is called a ternary operator, it's basically saying: if dx is greater than 0, then dirx = -1, if dx is less than or equal to 0, dirx = 1.
-  int diry = dy > 0 ? 1 : -1;  //this is called a ternary operator, it's basically saying: if dy is greater than 0, then diry = 1, if dy is less than or equal to 0, diry = -1.
-  //the reason one of these ^ is inverted logic (1/-1) is due to the direction these motors rotate in the system.
+  int dirx = dx > 0 ? -1 : 1; // this is called a ternary operator, it's basically saying: if dx is greater than 0, then dirx = -1, if dx is less than or equal to 0, dirx = 1.
+  int diry = dy > 0 ? 1 : -1; // this is called a ternary operator, it's basically saying: if dy is greater than 0, then diry = 1, if dy is less than or equal to 0, diry = -1.
+  // the reason one of these ^ is inverted logic (1/-1) is due to the direction these motors rotate in the system.
 
-  dx = abs(dx);  //normalize the dx/dy values so that they are positive.
-  dy = abs(dy);  //abs() is taking the "absolute value" - basically it removes the negative sign from negative numbers
+  dx = abs(dx); // normalize the dx/dy values so that they are positive.
+  dy = abs(dy); // abs() is taking the "absolute value" - basically it removes the negative sign from negative numbers
 
-  //the following nested If statements check which change is greater, and use that to determine which coordinate (x or y) get's treated as the rise or the run in the slope calculation
-  //we have to do this because technically bresenhams only works for the positive quandrant of the cartesian coordinate grid,
-  // so we are just flipping the values around to get the line moving in the correct direction relative to it's current position (instead of just up an to the right)
-  if (dx > dy) {
+  // the following nested If statements check which change is greater, and use that to determine which coordinate (x or y) get's treated as the rise or the run in the slope calculation
+  // we have to do this because technically bresenhams only works for the positive quandrant of the cartesian coordinate grid,
+  //  so we are just flipping the values around to get the line moving in the correct direction relative to it's current position (instead of just up an to the right)
+  if (dx > dy)
+  {
     over = dx / 2;
-    for (i = 0; i < dx; i++) {  //for however much our current position differs from the target,
-      xStepper.step(dirx);      //do a step in that direction (remember, dirx is always going to be either 1 or -1 from the ternary operator above)
+    for (i = 0; i < dx; i++)
+    {                      // for however much our current position differs from the target,
+      xStepper.step(dirx); // do a step in that direction (remember, dirx is always going to be either 1 or -1 from the ternary operator above)
 
       // Serial.print("Xsteps: ");
       // Serial.print(dirx);
       // Serial.print("  ");
 
       over += dy;
-      if (over >= dx) {
+      if (over >= dx)
+      {
         over -= dx;
 
         // Serial.print("Ysteps: ");
@@ -855,65 +1108,80 @@ void line(int newx, int newy, bool drawing) {
 
         yStepper.step(diry);
       }
-      //delay(1);
+      // delay(1);
     }
-  } else {
+  }
+  else
+  {
     over = dy / 2;
-    for (i = 0; i < dy; i++) {
+    for (i = 0; i < dy; i++)
+    {
       yStepper.step(diry);
       // Serial.print("Ysteps: ");
       // Serial.print(diry);
       // Serial.print("  ");
       over += dx;
-      if (over >= dy) {
+      if (over >= dy)
+      {
         over -= dy;
         // Serial.print("Xsteps: ");
         // Serial.println(dirx);
         xStepper.step(dirx);
       }
-      //delay(1);
+      // delay(1);
     }
   }
-  xpos = newx;  //store positions
-  ypos = newy;  //store positions
+  xpos = newx; // store positions
+  ypos = newy; // store positions
 }
 
-void plot(boolean penOnPaper) {  //used to handle lifting or lowering the pen on to the tape
-  if (penOnPaper) {              //if the pen is already up, put it down
+void plot(boolean penOnPaper)
+{ // used to handle lifting or lowering the pen on to the tape
+  if (penOnPaper)
+  { // if the pen is already up, put it down
     angle = 80;
-  } else {  //if down, then lift up.
+  }
+  else
+  { // if down, then lift up.
     angle = 25;
   }
-  servo.write(angle);                        //actuate the servo to either position.
-  if (penOnPaper != pPenOnPaper) delay(50);  //gives the servo time to move before jumping into the next action
-  pPenOnPaper = penOnPaper;                  //store the previous state.
+  servo.write(angle); // actuate the servo to either position.
+  if (penOnPaper != pPenOnPaper)
+    delay(50);              // gives the servo time to move before jumping into the next action
+  pPenOnPaper = penOnPaper; // store the previous state.
 }
 
-void penUp() {  //singular command to lift the pen up
+void penUp()
+{ // singular command to lift the pen up
   servo.write(25);
 }
 
-void penDown() {  //singular command to put the pen down
+void penDown()
+{ // singular command to put the pen down
   servo.write(80);
 }
 
-void releaseMotors() {
-  for (int i = 0; i < 4; i++) {  //deactivates all the motor coils
-    digitalWrite(xPins[i], 0);   //just picks each motor pin and send 0 voltage
+void releaseMotors()
+{
+  for (int i = 0; i < 4; i++)
+  {                            // deactivates all the motor coils
+    digitalWrite(xPins[i], 0); // just picks each motor pin and send 0 voltage
     digitalWrite(yPins[i], 0);
   }
   plot(false);
 }
 
-void homeYAxis() {
-  yStepper.step(-3000);  //lowers the pen holder to it's lowest position.
+void homeYAxis()
+{
+  yStepper.step(-3000); // lowers the pen holder to it's lowest position.
 }
 
-void resetScreen() {
-  lcd.clear();          // clear LCD
-  lcd.setCursor(0, 0);  // set cursor to row 0 column 0
+void resetScreen()
+{
+  lcd.clear();         // clear LCD
+  lcd.setCursor(0, 0); // set cursor to row 0 column 0
   lcd.print(": ");
-  lcd.setCursor(1, 0);  //move cursor down to row 1 column 0
+  lcd.setCursor(1, 0); // move cursor down to row 1 column 0
   cursorPosition = 1;
 }
 
@@ -921,7 +1189,8 @@ void resetScreen() {
 static float gcode_max_x_mm = 0.0f;
 
 // Convert mm to internal step units and draw
-static void gcodeMoveBridge(float x_mm, float y_mm, bool drawing) {
+static void gcodeMoveBridge(float x_mm, float y_mm, bool drawing)
+{
   // Scaling: based on 1600 units => 36mm (X) and 14mm (Y)
   // So 1 mm = 1600/36 units (X) and 1600/14 units (Y)
   const float X_UNITS_PER_MM = 1600.0f / 36.0f; // ≈ 44.444...
@@ -935,13 +1204,22 @@ static void gcodeMoveBridge(float x_mm, float y_mm, bool drawing) {
   line((int)tx, (int)ty, drawing);
 }
 
-static void gcodePenBridge(bool down) {
-  if (down) penDown(); else penUp();
+static void gcodePenBridge(bool down)
+{
+  if (down)
+    penDown();
+  else
+    penUp();
 }
 
-void executeRawGCode(const String &program) {
+void executeRawGCode(const String &program)
+{
   // Ensure starting conditions: pen up by default, absolute mode
   gcodePenBridge(false);
+  // Initial progress at 0%
+  notifyProgress("raw", 0, program.length());
+  // If a job is active via BLE, the screen is locked for progress/status
+  if (screenLocked) { lcdShowProgress(0); }
   // Convert current internal units to mm for parser starting point
   const float X_MM_PER_UNIT = 36.0f / 1600.0f;
   const float Y_MM_PER_UNIT = 14.0f / 1600.0f;
@@ -953,6 +1231,15 @@ void executeRawGCode(const String &program) {
   GCodeParser parser(gcodeMoveBridge, gcodePenBridge, startXmm, startYmm);
   parser.setAbsolute(true);
   parser.setPenState(false);
+  // Wire progress: based on input string position
+  parser.setProgressCallback([](int processed, int total)
+                             {
+    notifyProgress("raw", processed, total);
+    // Update LCD progress whenever the screen is locked for printing
+    if (screenLocked) {
+      int pct = (total > 0) ? (processed * 100) / total : 0;
+      lcdShowProgress(pct);
+    } });
 
   // Parse and execute
   parser.process(program);
@@ -975,9 +1262,15 @@ void executeRawGCode(const String &program) {
 
   // Optionally release motors
   releaseMotors();
+
+  // Job done; send 100%
+  bleNotify("Ready");
+  // Clear and unlock LCD after BLE-driven raw print
+  lcd.clear();
+  screenLocked = false;
 }
 #pragma endregion FUNCTIONS
 
 //////////////////////////////////////////////////
-               //  END CODE  //
+//  END CODE  //
 //////////////////////////////////////////////////
