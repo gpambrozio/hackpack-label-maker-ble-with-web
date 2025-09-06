@@ -6,7 +6,7 @@ This project is an Arduino sketch for an ESP32-based label plotter with BLE cont
 - Board: Arduino Nano ESP32 (FQBN: `arduino:esp32:nano_nora`).
 - Entry point: `label-maker.ino`.
 - G-code parser: `GCodeParser.h` (mm-based, float coords).
-- Web client: `test-client.html` (Chrome/Web Bluetooth).
+- Web client: `web-client/index.html` (Chrome/Web Bluetooth).
 - VS Code tasks:
   - Build: “Arduino Nano Esp32: Compile”
   - Upload: “Arduino Nano Esp32: Upload” (depends on compile, so it will automatically compile and upload new firmware)
@@ -48,7 +48,7 @@ To extend:
 2. Map to new behavior in the move/pen callbacks or expand the bridge in `label-maker.ino`.
 
 ## Web Bluetooth client
-- `test-client.html` features:
+- `web-client/index.html` features:
   - Connect/Disconnect
   - Pen Down / Pen Up buttons
   - Text input + “Send Text” → `print-text,<text>`
@@ -63,7 +63,7 @@ To extend:
 
 ## Quick sanity workflow
 1. Compile/Upload via VS Code tasks.
-2. Open `test-client.html` in Chrome, connect.
+2. Open `web-client/index.html` in Chrome, connect.
 3. Try: `G90;M5;G0 X0 Y0;M3;G1 X20 Y0;G1 X20 Y10;G1 X0 Y10;G1 X0 Y0;M5`.
 4. Verify cursor advances past drawing and Y returns to 0.
 
