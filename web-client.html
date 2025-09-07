@@ -283,6 +283,15 @@
                 repeating-linear-gradient(135deg, rgba(124, 58, 237, .25) 0px, rgba(124, 58, 237, .25) 6px, rgba(76, 29, 149, .25) 6px, rgba(76, 29, 149, .25) 12px);
             box-shadow: 0 0 0 1px rgba(124, 58, 237, .35), 0 10px 24px rgba(124, 58, 237, .25);
         }
+
+        /* Drawing UX */
+        #gcodePreview {
+            touch-action: none;
+        }
+
+        .drawing-cursor {
+            cursor: crosshair;
+        }
     </style>
 </head>
 
@@ -372,6 +381,10 @@
                                 class="w-44">
                             <span id="thicknessValue" class="text-xs text-slate-400">2.0 mm</span>
                             <span class="text-xs text-slate-400">Area: 260 × 30 mm</span>
+                            <button id="toggleDrawButton" class="btn btn-secondary btn-sm ml-2"
+                                title="Toggle freehand drawing on the preview">
+                                Enable Draw
+                            </button>
                         </div>
                         <div class="preview-frame p-0 md:p-2">
                             <div class="tape-surface w-fit">
@@ -390,6 +403,9 @@
                             placeholder="Enter G-code here"></textarea>
                         <div class="flex flex-wrap items-center gap-2">
                             <button id="sendSampleGcodeButton" class="btn btn-sm" disabled>Send G-code</button>
+                            <button id="clearGCodeButton" class="btn btn-secondary btn-sm" title="Clear G-code input">
+                                Clear
+                            </button>
                             <button id="resetToSampleButton" class="btn btn-secondary btn-sm"
                                 title="Load sample ruler into viewer">Load sample ruler</button>
                             <button id="loadCrunchLabsButton" class="btn btn-secondary btn-sm"
@@ -436,7 +452,7 @@
         // UUIDs from the Arduino code
         const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
         const CHARACTERISTIC_UUID = '87654321-4321-8765-4321-87654321fedc';
-    const STATUS_CHARACTERISTIC_UUID = '5f4e3d2c-1b0a-0908-0706-050403020100';
+        const STATUS_CHARACTERISTIC_UUID = '5f4e3d2c-1b0a-0908-0706-050403020100';
 
         // Get UI elements
         const connectButton = document.getElementById('connectButton');
@@ -450,9 +466,11 @@
         const gcodeTextarea = document.getElementById('gcodeTextarea');
         const resetToSampleButton = document.getElementById('resetToSampleButton');
         const loadCrunchLabsButton = document.getElementById('loadCrunchLabsButton');
+        const clearGCodeButton = document.getElementById('clearGCodeButton');
         const gcodePreview = document.getElementById('gcodePreview');
         const thicknessSlider = document.getElementById('thicknessSlider');
         const thicknessValue = document.getElementById('thicknessValue');
+        const toggleDrawButton = document.getElementById('toggleDrawButton');
 
         // Preview stroke width in mm
         let currentStrokeWidth = 2.0;
@@ -1161,6 +1179,102 @@ M5`;
             }
         };
 
+        // --- Freehand drawing → append G-code ---
+        let drawEnabled = false;
+        let isDrawing = false;
+        /** @type {{x:number,y:number}|null} */
+        let lastPt = null;
+        const MIN_SEG_MM = 0.5; // reduce density
+
+        const appendGcodeLines = (lines) => {
+            if (!lines || !lines.length) return;
+            let existing = gcodeTextarea.value;
+            const needSep = existing.length > 0 && !/[;\n\r]$/.test(existing);
+            if (needSep) existing += ';';
+            gcodeTextarea.value = existing + lines.join(';');
+            parseAndRenderGcode(gcodeTextarea.value);
+        };
+
+        const setDrawEnabled = (on) => {
+            const enabling = !!on;
+            if (!enabling && isDrawing) {
+                // finish any active stroke
+                appendGcodeLines(['M5']);
+                isDrawing = false;
+                lastPt = null;
+            }
+            drawEnabled = enabling;
+            toggleDrawButton.textContent = drawEnabled ? 'Disable Draw' : 'Enable Draw';
+            gcodePreview.classList.toggle('drawing-cursor', drawEnabled);
+        };
+
+        const clientToMM = (e) => {
+            const rect = gcodePreview.getBoundingClientRect();
+            const sx = MAX_X / rect.width;
+            const sy = MAX_Y / rect.height;
+            const x = (e.clientX - rect.left) * sx;
+            const y = (rect.bottom - e.clientY) * sy; // invert Y so bottom-left origin
+            // clamp
+            return {
+                x: Math.max(0, Math.min(MAX_X, x)),
+                y: Math.max(0, Math.min(MAX_Y, y))
+            };
+        };
+
+        const dist2 = (a, b) => {
+            const dx = a.x - b.x, dy = a.y - b.y;
+            return dx * dx + dy * dy;
+        };
+
+        const round2 = (v) => Math.round(v * 100) / 100;
+
+        // Kept for reference; not used in streaming mode
+        const appendStrokeToGcode = (pts) => {
+            if (!pts || pts.length < 2) return;
+            const fmt = (p) => `X${round2(p.x)} Y${round2(p.y)}`;
+            const start = pts[0];
+            const lines = ['G90', 'M5', `G0 ${fmt(start)}`, 'M3'];
+            for (let i = 1; i < pts.length; i++) lines.push(`G1 ${fmt(pts[i])}`);
+            lines.push('M5');
+            appendGcodeLines(lines);
+        };
+
+        const onPointerDown = (e) => {
+            if (!drawEnabled) return;
+            // Only main button for mouse, but allow touch/pen
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            e.preventDefault();
+            if (isDrawing) return; // guard
+            const p = clientToMM(e);
+            lastPt = p;
+            isDrawing = true;
+            // Start stroke immediately: rapid to start, pen down
+            const fmt = (pt) => `X${round2(pt.x)} Y${round2(pt.y)}`;
+            appendGcodeLines(['G90', 'M5', `G0 ${fmt(p)}`, 'M3']);
+            try { gcodePreview.setPointerCapture(e.pointerId); } catch { }
+        };
+
+        const onPointerMove = (e) => {
+            if (!drawEnabled || !isDrawing) return;
+            e.preventDefault();
+            const p = clientToMM(e);
+            const last = lastPt;
+            if (!last || dist2(p, last) >= MIN_SEG_MM * MIN_SEG_MM) {
+                const fmt = (pt) => `X${round2(pt.x)} Y${round2(pt.y)}`;
+                appendGcodeLines([`G1 ${fmt(p)}`]);
+                lastPt = p;
+            }
+        };
+
+        const endStroke = (e) => {
+            if (!isDrawing) return;
+            e && e.preventDefault();
+            isDrawing = false;
+            try { e && gcodePreview.releasePointerCapture(e.pointerId); } catch { }
+            appendGcodeLines(['M5']);
+            lastPt = null;
+        };
+
         // UI actions
         const sendPenDown = () => writeCommand('pen-down,');
         const sendPenUp = () => writeCommand('pen-up,');
@@ -1239,6 +1353,10 @@ M5`;
             updateStatus('Loaded Crunch Labs logo sample into viewer.');
         };
         loadCrunchLabsButton.addEventListener('click', loadCrunchLabs);
+        clearGCodeButton.addEventListener('click', () => {
+            gcodeTextarea.value = '';
+            parseAndRenderGcode('');
+        });
         gcodeTextarea.addEventListener('input', (e) => parseAndRenderGcode(e.target.value));
         thicknessSlider.addEventListener('input', (e) => {
             const v = parseFloat(e.target.value);
@@ -1246,6 +1364,14 @@ M5`;
             thicknessValue.textContent = `${currentStrokeWidth.toFixed(1)} mm`;
             parseAndRenderGcode(gcodeTextarea.value || '');
         });
+
+        // Draw toggle + pointer events
+        toggleDrawButton.addEventListener('click', () => setDrawEnabled(!drawEnabled));
+        gcodePreview.addEventListener('pointerdown', onPointerDown);
+        gcodePreview.addEventListener('pointermove', onPointerMove);
+        gcodePreview.addEventListener('pointerup', endStroke);
+        gcodePreview.addEventListener('pointercancel', endStroke);
+        gcodePreview.addEventListener('pointerleave', endStroke);
 
         // Tabs
         const tabText = document.getElementById('tabText');
