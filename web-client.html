@@ -1108,10 +1108,16 @@ M5`;
             let pen = false;
             let x = 0, y = 0;
             let path = '';
+            // Track if any motion occurred while pen was down; if not, render a dot on pen-up
+            let movedSincePenDown = true;
+            /** @type {{x:number,y:number}[]} */
+            const dots = [];
             const addSeg = (nx, ny) => {
                 if (!pen) return;
                 if (!path) path = `M ${x} ${y}`;
                 path += ` L ${nx} ${ny}`;
+                // Mark that movement occurred during current pen-down span
+                movedSincePenDown = true;
             };
 
             const lines = program.split(/[;\n\r]+/);
@@ -1146,7 +1152,12 @@ M5`;
                         // start new subpath at current pos always
                         if (path) path += ` M ${x} ${y}`; else path = `M ${x} ${y}`;
                         pen = true;
+                        movedSincePenDown = false;
                     } else if (num === 5) { // pen up
+                        // If no movement since pen down, this is a "tap" → render as a dot
+                        if (pen && !movedSincePenDown) {
+                            dots.push({ x, y });
+                        }
                         pen = false;
                     } else if (num === 300) {
                         // M300 Sxx heuristic
@@ -1157,7 +1168,11 @@ M5`;
                             if (down && !pen) {
                                 if (path) path += ` M ${x} ${y}`; else path = `M ${x} ${y}`;
                                 pen = true;
+                                movedSincePenDown = false;
                             } else if (!down && pen) {
+                                if (!movedSincePenDown) {
+                                    dots.push({ x, y });
+                                }
                                 pen = false;
                             }
                         }
@@ -1176,6 +1191,20 @@ M5`;
                 p.setAttribute('stroke-linecap', 'round');
                 p.setAttribute('stroke-linejoin', 'round');
                 gg.appendChild(p);
+            }
+
+            // Render any tap dots (M3→M5 with no motion) as filled circles sized to stroke width
+            if (dots.length) {
+                const r = Math.max(0.01, currentStrokeWidth / 2);
+                for (const { x: dx, y: dy } of dots) {
+                    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    c.setAttribute('cx', String(dx));
+                    c.setAttribute('cy', String(dy));
+                    c.setAttribute('r', String(r));
+                    c.setAttribute('fill', '#d5dbe6');
+                    c.setAttribute('fill-opacity', '0.95');
+                    gg.appendChild(c);
+                }
             }
         };
 
