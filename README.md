@@ -37,6 +37,7 @@ This version swaps in an Arduino Nano ESP32 so it can talk over Bluetooth Low En
   - Bluetooth control: pen up/down, print text, and send G‑code.
   - A tiny web client that runs in Chrome/Edge using Web Bluetooth.
 - Libraries: uses NimBLE (BLE) and ESP32Servo; everything is installable from Arduino IDE.
+  - **WARNING:** `ESP32Servo` did not work for me in latest version (3.0.8), so I installed 3.0.7 instead
 
 ---
 
