@@ -38,7 +38,7 @@ This version swaps in an Arduino Nano ESP32 so it can talk over Bluetooth Low En
   - A tiny web client that runs in Chrome/Edge using Web Bluetooth.
 - Libraries: uses NimBLE (BLE) and ESP32Servo; everything is installable from Arduino IDE.
   - **WARNING:** `ESP32Servo` did not work for me in latest version (3.0.8), so I installed 3.0.7 instead
-- Joystick analog reads did not wrk on ESP32 - I had some issues as the resting state was around 75% of the max, which tells me that the analogRead is non-linear on ESP32. I fixed it with some naive offset.
+- Joystick analog reads did not work as expected on ESP32 — the resting state was around 75% of the max value. The original Arduino Nano is 5V, but the ESP32 uses 3.3V logic. Since the joystick gets its VCC from USB-C (typically 5V), this can **overdrive the ESP32 analog pins**. Technically, you should use a voltage divider to safely drop the joystick output to 3.3V for the ESP32. For quick testing, I applied a naive offset in code, but **for long-term reliability, add a voltage divider on each analog line**.
 
 ---
 
