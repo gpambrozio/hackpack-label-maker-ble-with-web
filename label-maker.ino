@@ -101,6 +101,13 @@ int yPins[4] = {2, 4, 3, 5}; // pins for y-motor coils
 const int SERVO_PIN = D13;
 Servo servo;
 int angle = 30; // the current angle of servo motor
+// Servo positions and dwell timings (ms)
+const int SERVO_UP_ANGLE = 25;
+const int SERVO_DOWN_ANGLE = 80;
+// Time to wait after toggling pen state so the servo can fully move
+// Increase DOWN dwell if pen doesn't reliably touch the tape
+const unsigned long SERVO_DWELL_DOWN_MS = 250; // was ~50ms implicitly; increase for reliability
+const unsigned long SERVO_DWELL_UP_MS = 120;   // shorter is fine when lifting
 
 // Creates states to store what the current menu and joystick states are
 // Decoupling the state from other functions is good because it means the sensor / screen aren't hardcoded into every single action and can be handled at a higher level
@@ -266,7 +273,7 @@ String BTtext = "";
 
 NimBLEServer *pServer = NULL;
 NimBLECharacteristic *pCharacteristic = NULL;
-NimBLECharacteristic *pStatusCharacteristic = NULL;       // notify-only
+NimBLECharacteristic *pStatusCharacteristic = NULL; // notify-only
 bool deviceConnected = false;
 
 // Chunked G-code transfer state (for BLE 512-byte write limit)
@@ -284,7 +291,7 @@ class MyServerCallbacks : public NimBLEServerCallbacks
     {
       std::string s = std::string("Connected");
       pStatusCharacteristic->setValue(s);
-  pStatusCharacteristic->notify();
+      pStatusCharacteristic->notify();
     }
   }
 
@@ -296,7 +303,7 @@ class MyServerCallbacks : public NimBLEServerCallbacks
     {
       std::string s = std::string("Disconnected");
       pStatusCharacteristic->setValue(s);
-  pStatusCharacteristic->notify();
+      pStatusCharacteristic->notify();
     }
   }
 };
@@ -330,10 +337,10 @@ void readBTCmd()
         currentState = Printing;
         prevState = PrintConfirmation;
         Serial.println("Received print-text command. Starting print.");
-  screenLocked = true; // lock LCD for printing
-  // Progress: 0% at start
-  bleNotify("Printing (text): 0%");
-  lcdShowProgress(0);
+        screenLocked = true; // lock LCD for printing
+        // Progress: 0% at start
+        bleNotify("Printing (text): 0%");
+        lcdShowProgress(0);
       }
       else if (command.equalsIgnoreCase("cancel"))
       {
@@ -356,10 +363,10 @@ void readBTCmd()
       {
         // params contains raw G-code program. Execute immediately.
         Serial.println("Received print-raw command. Executing G-code...");
-  screenLocked = true; // lock LCD for printing
-  // Progress: 0% at start
-  bleNotify("Printing (raw): 0%");
-  lcdShowProgress(0);
+        screenLocked = true; // lock LCD for printing
+        // Progress: 0% at start
+        bleNotify("Printing (raw): 0%");
+        lcdShowProgress(0);
         executeRawGCode(params);
       }
       else if (command.equalsIgnoreCase("print-raw-begin"))
@@ -369,10 +376,10 @@ void readBTCmd()
         gcode_chunk_buffer = "";
         gcode_chunk_buffer.reserve(2048); // pre-allocate some space
         gcode_chunk_active = true;
-  screenLocked = true; // lock LCD for printing
-  // Prepare progress view
-  bleNotify("Printing (raw): 0%");
-  lcdShowProgress(0);
+        screenLocked = true; // lock LCD for printing
+        // Prepare progress view
+        bleNotify("Printing (raw): 0%");
+        lcdShowProgress(0);
       }
       else if (command.equalsIgnoreCase("print-raw-data"))
       {
@@ -578,7 +585,6 @@ void loop()
     }
   }
 
-
   readBTCmd();
 
   // Handle BT commands if a new command has been received
@@ -603,7 +609,10 @@ void loop()
 
   case MainMenu:
   {
-  if (screenLocked) { break; } // avoid overwriting progress screen
+    if (screenLocked)
+    {
+      break;
+    } // avoid overwriting progress screen
     if (prevState != MainMenu)
     {
       lcd.clear();
@@ -619,7 +628,7 @@ void loop()
 
     if (millis() % 600 < 400)
     { // Blink every 500 ms
-  lcd.print(">");
+      lcd.print(">");
     }
     else
     {
@@ -641,10 +650,12 @@ void loop()
     // Editing mode
     if (prevState != Editing)
     {
-      if (!screenLocked) lcd.clear();
+      if (!screenLocked)
+        lcd.clear();
       prevState = Editing;
     }
-    if (!screenLocked) {
+    if (!screenLocked)
+    {
       // lcd.clear();
       lcd.setCursor(0, 0);
       lcd.print(":");
@@ -681,7 +692,8 @@ void loop()
     }
     else
     {
-      if (!screenLocked) {
+      if (!screenLocked)
+      {
         if (millis() % 600 < 450)
         {
           lcd.print(alphabet[currentCharacter]);
@@ -700,7 +712,8 @@ void loop()
       if (text.length() > 0)
       {
         text.remove(text.length() - 1);
-        if (!screenLocked) {
+        if (!screenLocked)
+        {
           lcd.setCursor(0, 0);
           lcd.print(MENU_CLEAR); // clear and reprint the string so characters dont hang
           lcd.setCursor(1, 0);
@@ -735,7 +748,8 @@ void loop()
         text += alphabet[currentCharacter]; // add the current character to the text
         currentCharacter = 0;               // reset for the next character
       }
-      if (!screenLocked) lcd.clear();
+      if (!screenLocked)
+        lcd.clear();
       currentState = PrintConfirmation;
       prevState = Editing;
     }
@@ -744,7 +758,10 @@ void loop()
 
   case PrintConfirmation:
     // Print confirmation mode
-    if (screenLocked) { break; }
+    if (screenLocked)
+    {
+      break;
+    }
     if (prevState == Editing)
     {
       lcd.setCursor(0, 0);   // move cursor to the first line
@@ -789,13 +806,15 @@ void loop()
     { // handles clicking options in print confirmation
       if (cursorPosition == 2)
       { // proceed to printing if clicking yes
-    if (!screenLocked) lcd.clear();
+        if (!screenLocked)
+          lcd.clear();
         currentState = Printing;
         prevState = PrintConfirmation;
       }
       else if (cursorPosition == 10)
       { // return to editing if you click no
-    if (!screenLocked) lcd.clear();
+        if (!screenLocked)
+          lcd.clear();
         currentState = Editing;
         prevState = PrintConfirmation;
       }
@@ -807,14 +826,14 @@ void loop()
     // Printing mode
     if (prevState == PrintConfirmation)
     {
-  screenLocked = true; // ensure LCD reserved when starting from UI
+      screenLocked = true; // ensure LCD reserved when starting from UI
       lcd.setCursor(0, 0);
       lcd.print(PRINTING); // initial header; will be overwritten with progress
       lcd.setCursor(0, 1);
       lcd.print(text);
-  // Initialize progress at 0%
-  lcdShowProgress(0);
-  bleNotify("Printing (text): 0%");
+      // Initialize progress at 0%
+      lcdShowProgress(0);
+      bleNotify("Printing (text): 0%");
     }
 
     // ----------------------------------------------- plot text
@@ -828,8 +847,8 @@ void loop()
     yStepper.step(-2250);
     releaseMotors();
     bleNotify("Ready");
-  lcd.clear();
-  screenLocked = false; // unlock LCD after printing completes
+    lcd.clear();
+    screenLocked = false; // unlock LCD after printing completes
     currentState = Editing;
     prevState = Printing;
 
@@ -849,7 +868,10 @@ void plotText(String &str, int x, int y)
   Serial.println(str);
   // Initial progress at 0%
   notifyProgress("text", 0, str.length());
-  if (currentState == Printing) { lcdShowProgress(0); }
+  if (currentState == Printing)
+  {
+    lcdShowProgress(0);
+  }
   for (int i = 0; i < str.length(); i++)
   {                               // for each letter in the string (expressed as "while i is less than string length")
     char c = char(str.charAt(i)); // store the next character to plot on it's own
@@ -1137,28 +1159,35 @@ void line(int newx, int newy, bool drawing)
 
 void plot(boolean penOnPaper)
 { // used to handle lifting or lowering the pen on to the tape
-  if (penOnPaper)
-  { // if the pen is already up, put it down
-    angle = 80;
-  }
-  else
-  { // if down, then lift up.
-    angle = 25;
-  }
-  servo.write(angle); // actuate the servo to either position.
+  // Only act if there's a state change
   if (penOnPaper != pPenOnPaper)
-    delay(50);              // gives the servo time to move before jumping into the next action
-  pPenOnPaper = penOnPaper; // store the previous state.
+  {
+    angle = penOnPaper ? SERVO_DOWN_ANGLE : SERVO_UP_ANGLE;
+    servo.write(angle);
+    // Dwell long enough for the servo to reach position
+    delay(penOnPaper ? SERVO_DWELL_DOWN_MS : SERVO_DWELL_UP_MS);
+    pPenOnPaper = penOnPaper; // update stored state after the move completes
+  }
 }
 
 void penUp()
 { // singular command to lift the pen up
-  servo.write(25);
+  if (pPenOnPaper)
+  {
+    servo.write(SERVO_UP_ANGLE);
+    delay(SERVO_DWELL_UP_MS);
+    pPenOnPaper = false;
+  }
 }
 
 void penDown()
 { // singular command to put the pen down
-  servo.write(80);
+  if (!pPenOnPaper)
+  {
+    servo.write(SERVO_DOWN_ANGLE);
+    delay(SERVO_DWELL_DOWN_MS);
+    pPenOnPaper = true;
+  }
 }
 
 void releaseMotors()
@@ -1219,7 +1248,10 @@ void executeRawGCode(const String &program)
   // Initial progress at 0%
   notifyProgress("raw", 0, program.length());
   // If a job is active via BLE, the screen is locked for progress/status
-  if (screenLocked) { lcdShowProgress(0); }
+  if (screenLocked)
+  {
+    lcdShowProgress(0);
+  }
   // Convert current internal units to mm for parser starting point
   const float X_MM_PER_UNIT = 36.0f / 1600.0f;
   const float Y_MM_PER_UNIT = 14.0f / 1600.0f;
