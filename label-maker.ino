@@ -1224,6 +1224,13 @@ static void gcodeMoveBridge(float x_mm, float y_mm, bool drawing)
   // So 1 mm = 1600/36 units (X) and 1600/14 units (Y)
   const float X_UNITS_PER_MM = 1600.0f / 36.0f; // ≈ 44.444...
   const float Y_UNITS_PER_MM = 1600.0f / 14.0f; // ≈ 114.2857
+  // Static Y offset (in mm) applied to all G-code driven motion so that program Y0 prints 1mm above physical bottom.
+  // This avoids squishing the lowest strokes when the mechanical zero is slightly below usable print surface.
+  const float GCODE_Y_STATIC_OFFSET_MM = 1.0f;
+
+  // Apply offset before converting to internal units. We deliberately do NOT modify the parser's internal y state,
+  // so curY() still reflects logical program coordinates (without the offset). Only the physical motion is shifted.
+  y_mm += GCODE_Y_STATIC_OFFSET_MM;
 
   long tx = lroundf(x_mm * X_UNITS_PER_MM);
   long ty = lroundf(y_mm * Y_UNITS_PER_MM);
@@ -1257,6 +1264,9 @@ void executeRawGCode(const String &program)
   const float Y_MM_PER_UNIT = 14.0f / 1600.0f;
   float startXmm = xpos * X_MM_PER_UNIT;
   float startYmm = ypos * Y_MM_PER_UNIT;
+
+  // Note: We intentionally do NOT add the static Y offset here; the move bridge applies it only for physical motion.
+  // This keeps reported coordinates (e.g., for future status reporting) in the logical program space.
 
   gcode_max_x_mm = startXmm;
 

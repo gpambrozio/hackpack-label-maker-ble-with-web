@@ -11,6 +11,8 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rubik:wght@400;600;800&display=swap"
         rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- QR code generator (MIT) -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     <style>
         :root {
             --bg: #0b0b0c;
@@ -406,6 +408,7 @@
                             <button id="clearGCodeButton" class="btn btn-secondary btn-sm" title="Clear G-code input">
                                 Clear
                             </button>
+                            <button id="generateQrButton" class="btn btn-secondary btn-sm" title="Generate QR code as G-code">Generate QR</button>
                             <button id="resetToSampleButton" class="btn btn-secondary btn-sm"
                                 title="Load sample ruler into viewer">Load sample ruler</button>
                             <button id="loadCrunchLabsButton" class="btn btn-secondary btn-sm"
@@ -442,6 +445,54 @@
         </div>
 
         <!-- Status now lives in toolbar -->
+
+        <!-- QR Modal -->
+        <div id="qrModal" class="fixed inset-0 z-50 hidden">
+            <div id="qrBackdrop" class="absolute inset-0 bg-black/70"></div>
+            <div class="relative mx-auto mt-20 w-[min(92vw,640px)] bg-[#0f1113] border border-slate-600/40 shadow-2xl">
+                <div class="p-4 border-b border-slate-600/40 flex items-center justify-between">
+                    <div class="engraved">Generate QR Code</div>
+                    <button id="qrCloseButton" type="button" class="btn-secondary btn-sm">Close</button>
+                </div>
+                <div class="p-4 space-y-4">
+                    <div class="space-y-2">
+                        <label class="engraved text-sm opacity-80">Text / URL</label>
+                        <input id="qrTextInput" type="text" class="input w-full" placeholder="Enter URL or text" />
+                        <p class="text-xs text-slate-400">Tip: Long URLs require a smaller tool thickness (module size) to fit within 30 mm height.</p>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="engraved text-sm opacity-80">Error correction</label>
+                        <div class="flex flex-wrap gap-4 text-sm">
+                            <label class="inline-flex items-center gap-2"><input type="radio" name="qrEcc" value="L" /> L (7%)</label>
+                            <label class="inline-flex items-center gap-2"><input type="radio" name="qrEcc" value="M" checked /> M (15%)</label>
+                            <label class="inline-flex items-center gap-2"><input type="radio" name="qrEcc" value="Q" /> Q (25%)</label>
+                            <label class="inline-flex items-center gap-2"><input type="radio" name="qrEcc" value="H" /> H (30%)</label>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="engraved text-sm opacity-80">Mode</label>
+                        <div class="flex flex-col gap-2 text-sm">
+                            <label class="inline-flex items-start gap-2">
+                                <input type="radio" name="qrMode" value="inverse" class="mt-1" checked />
+                                <span>
+                                    <span class="font-semibold">Inverse</span> — light pen on dark paper (draw light squares and a light border/background)
+                                </span>
+                            </label>
+                            <label class="inline-flex items-start gap-2">
+                                <input type="radio" name="qrMode" value="normal" class="mt-1" />
+                                <span>
+                                    <span class="font-semibold">Normal</span> — dark pen on light paper (draw the dark squares)
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 border-t border-slate-600/40 flex items-center gap-2 justify-end">
+                    <button id="qrCancelButton" type="button" class="btn-secondary btn-sm">Cancel</button>
+                    <button id="qrGenerateButton" type="button" class="btn btn-sm">Generate</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -471,9 +522,22 @@
         const thicknessSlider = document.getElementById('thicknessSlider');
         const thicknessValue = document.getElementById('thicknessValue');
         const toggleDrawButton = document.getElementById('toggleDrawButton');
+    const generateQrButton = document.getElementById('generateQrButton');
+    // QR Modal elements
+    const qrModal = document.getElementById('qrModal');
+    const qrTextInput = document.getElementById('qrTextInput');
+    const qrGenerateButton = document.getElementById('qrGenerateButton');
+    const qrCancelButton = document.getElementById('qrCancelButton');
+    const qrCloseButton = document.getElementById('qrCloseButton');
 
         // Preview stroke width in mm
         let currentStrokeWidth = 2.0;
+
+    // Track current program kind and QR config for auto-recalc
+    let currentProgramKind = 'manual'; // 'manual' | 'qr'
+    let currentQrConfig = null; // { text: string, inverse: boolean }
+    // Track the last used module size for QR (may be clamped vs. slider value)
+    let qrLastUsedModuleSize = null;
 
         /**
          * Updates the status message on the UI.
@@ -1338,6 +1402,8 @@ M5`;
             const g = buildSampleGcode();
             gcodeTextarea.value = g;
             parseAndRenderGcode(g);
+            currentProgramKind = 'manual';
+            currentQrConfig = null;
         };
 
         /**
@@ -1385,13 +1451,34 @@ M5`;
         clearGCodeButton.addEventListener('click', () => {
             gcodeTextarea.value = '';
             parseAndRenderGcode('');
+            currentProgramKind = 'manual';
+            currentQrConfig = null;
         });
         gcodeTextarea.addEventListener('input', (e) => parseAndRenderGcode(e.target.value));
-        thicknessSlider.addEventListener('input', (e) => {
+        thicknessSlider.addEventListener('input', async (e) => {
             const v = parseFloat(e.target.value);
             currentStrokeWidth = isFinite(v) ? v : 2.0;
             thicknessValue.textContent = `${currentStrokeWidth.toFixed(1)} mm`;
-            parseAndRenderGcode(gcodeTextarea.value || '');
+            // If current view is a QR code, rebuild it with new module size
+            if (currentProgramKind === 'qr' && currentQrConfig) {
+                try {
+                    await ensureQrLib();
+                    const g = buildQrGcode(currentQrConfig.text, currentQrConfig.inverse, currentStrokeWidth, currentQrConfig.ecc || 'M');
+                    gcodeTextarea.value = g;
+                    parseAndRenderGcode(g);
+                    if (qrLastUsedModuleSize && Math.abs(qrLastUsedModuleSize - currentStrokeWidth) > 1e-3) {
+                        updateStatus(`QR re-generated. Module size clamped to ${qrLastUsedModuleSize.toFixed(2)} mm to fit.`);
+                    } else {
+                        updateStatus('QR re-generated for new tool thickness.');
+                    }
+                } catch (err) {
+                    updateStatus(String(err));
+                    // Keep existing preview
+                    parseAndRenderGcode(gcodeTextarea.value || '');
+                }
+            } else {
+                parseAndRenderGcode(gcodeTextarea.value || '');
+            }
         });
 
         // Draw toggle + pointer events
@@ -1433,6 +1520,225 @@ M5`;
             gcodeTextarea.value = g;
             parseAndRenderGcode(g);
         })();
+
+        // ---------------- QR → G-code ----------------
+        const showQrModal = async () => {
+            // defaults
+            qrTextInput.value = 'https://tinyurl.com/5n6y9vjh';
+            const radios = /** @type {NodeListOf<HTMLInputElement>} */(document.querySelectorAll('input[name="qrMode"]'));
+            radios.forEach(r => r.checked = (r.value === 'inverse'));
+            const eccRadios = /** @type {NodeListOf<HTMLInputElement>} */(document.querySelectorAll('input[name="qrEcc"]'));
+            eccRadios.forEach(r => r.checked = (r.value === 'M'));
+            qrModal.classList.remove('hidden');
+            // Preload QR lib in the background
+            try { await ensureQrLib(); } catch (e) { updateStatus(String(e)); }
+        };
+        const hideQrModal = () => {
+            qrModal.classList.add('hidden');
+        };
+
+    generateQrButton.addEventListener('click', () => { updateStatus('Opening QR modal…'); showQrModal(); });
+        qrCancelButton.addEventListener('click', hideQrModal);
+        qrCloseButton.addEventListener('click', hideQrModal);
+        const qrBackdrop = document.getElementById('qrBackdrop');
+        qrBackdrop.addEventListener('click', hideQrModal);
+        window.addEventListener('keydown', (e) => {
+            if (!qrModal.classList.contains('hidden') && e.key === 'Escape') hideQrModal();
+        });
+
+        // Utility: clamp + rounding
+        const round3 = (v) => Math.round(v * 1000) / 1000;
+
+        // Ensure the QR library is available; lazy-load if missing
+        const ensureQrLib = () => new Promise((resolve, reject) => {
+            if (typeof window.qrcode === 'function') return resolve(window.qrcode);
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+            script.async = true;
+            script.onload = () => {
+                if (typeof window.qrcode === 'function') resolve(window.qrcode);
+                else reject(new Error('QR library failed to load.'));
+            };
+            script.onerror = () => reject(new Error('Failed to load QR library (network error).'));
+            document.head.appendChild(script);
+        });
+
+        /**
+         * Build QR code program as G-code.
+         * - Normal mode: draw dark modules as dots (M3;M5). Finder outer ring as single rectangle path; inner 3x3 filled with horizontal lines.
+         * - Inverse mode: draw light modules including a 1-module border as horizontal line segments (scanline fill).
+         * @param {string} text
+         * @param {boolean} inverse
+         * @param {number} moduleSizeMm Module size in mm (uses currentStrokeWidth)
+         * @returns {string}
+         */
+        const buildQrGcode = (text, inverse = true, moduleSizeMm = currentStrokeWidth, ecc = 'M') => {
+            if (typeof window.qrcode !== 'function') throw new Error('QR library not loaded.');
+            const requestedMs = Math.max(0.1, Number(moduleSizeMm) || 0.2);
+            // Build QR at smallest version that fits text (independent of module size)
+            const eccUp = String(ecc || 'M').toUpperCase();
+            const eccVal = (eccUp === 'L' || eccUp === 'M' || eccUp === 'Q' || eccUp === 'H') ? eccUp : 'M';
+            const qr = window.qrcode(0, eccVal);
+            qr.addData(text);
+            qr.make();
+            const n = qr.getModuleCount(); // modules per side
+
+            // Layout calculations
+            const BORDER = inverse ? 1 : 0; // 1-module border acts as background in inverse mode
+            const totalMods = n + 2 * BORDER;
+            // Fit constraint with half-stroke inset on all sides:
+            // totalMods*ms <= MAX - ms  => ms*(totalMods + 1) <= MAX  => ms <= MAX/(totalMods+1)
+            // Width uses preview width (MAX_X). Height uses relaxed QR limit: 32mm (do not change UI/preview area).
+            const msLimitW = MAX_X / (totalMods + 1);
+            const QR_MAX_H_MM = 32; // relaxed QR-only vertical bound
+            const msLimitH = QR_MAX_H_MM / (totalMods + 1);
+            const ms = Math.max(0.1, Math.min(requestedMs, msLimitW, msLimitH));
+            qrLastUsedModuleSize = ms;
+            // Place bottom-left with half-stroke inset
+            const x0 = ms / 2;
+            const y0 = ms / 2;
+
+            // Convert grid coords (big grid, includes border if any) to mm center
+            const toMM = (rB, cB) => {
+                const cx = x0 + (cB + 0.5) * ms;
+                const cy = y0 + (totalMods - (rB + 0.5)) * ms; // invert Y (row 0 is top)
+                return { x: round3(cx), y: round3(cy) };
+            };
+
+            /** Move/Draw helpers */
+            const cmds = [];
+            const rapid = (x, y) => { cmds.push('M5'); cmds.push(`G0 X${round3(x)} Y${round3(y)}`); };
+            const lineTo = (x, y) => { cmds.push('M3'); cmds.push(`G1 X${round3(x)} Y${round3(y)}`); cmds.push('M5'); };
+            const dotAt = (x, y) => { cmds.push('M5'); cmds.push(`G0 X${round3(x)} Y${round3(y)}`); cmds.push('M3'); cmds.push('M5'); };
+
+            cmds.push('G90');
+            cmds.push('M5');
+
+            if (!inverse) {
+                // Normal mode: draw finders as lines; rest dark modules as dots
+                // Finder squares positions in QR grid (not including border): 7x7 at TL (0,0), TR (0,n-7), BL (n-7,0)
+                const finders = [
+                    { r0: 0, c0: 0 },
+                    { r0: 0, c0: n - 7 },
+                    { r0: n - 7, c0: 0 },
+                ];
+                // Mark skip mask for finder areas (7x7)
+                const skip = new Set();
+                const key = (r, c) => `${r},${c}`;
+
+                for (const f of finders) {
+                    const { r0, c0 } = f;
+                    // Outer ring: draw each edge as an individual stroke with pen lift between segments
+                    const tl = toMM(r0 + BORDER, c0 + BORDER);
+                    const tr = toMM(r0 + BORDER, c0 + 6 + BORDER);
+                    const br = toMM(r0 + 6 + BORDER, c0 + 6 + BORDER);
+                    const bl = toMM(r0 + 6 + BORDER, c0 + BORDER);
+                    // Top edge TL -> TR
+                    rapid(tl.x, tl.y);
+                    lineTo(tr.x, tr.y);
+                    // Right edge TR -> BR
+                    rapid(tr.x, tr.y);
+                    lineTo(br.x, br.y);
+                    // Bottom edge BR -> BL
+                    rapid(br.x, br.y);
+                    lineTo(bl.x, bl.y);
+                    // Left edge BL -> TL
+                    rapid(bl.x, bl.y);
+                    lineTo(tl.x, tl.y);
+
+                    // Inner 3x3 filled with horizontal lines (lift per line)
+                    for (let rr = r0 + 2; rr <= r0 + 4; rr++) {
+                        const pL = toMM(rr + BORDER, (c0 + 2) + BORDER);
+                        const pR = toMM(rr + BORDER, (c0 + 4) + BORDER);
+                        rapid(pL.x, pL.y);
+                        lineTo(pR.x, pR.y);
+                    }
+
+                    // Mark skip for whole 7x7 area so we don't dot over finder
+                    for (let rr = r0; rr < r0 + 7; rr++) {
+                        for (let cc = c0; cc < c0 + 7; cc++) {
+                            skip.add(key(rr, cc));
+                        }
+                    }
+                }
+
+                // Dots for remaining dark modules
+                for (let r = 0; r < n; r++) {
+                    for (let c = 0; c < n; c++) {
+                        if (skip.has(key(r, c))) continue;
+                        if (qr.isDark(r, c)) {
+                            const p = toMM(r + BORDER, c + BORDER);
+                            dotAt(p.x, p.y); // single tap per pixel
+                        }
+                    }
+                }
+            } else {
+                // Inverse mode: draw all light modules including 1-module border as scanline segments
+                const isLightBig = (rB, cB) => {
+                    const inside = rB >= BORDER && rB < BORDER + n && cB >= BORDER && cB < BORDER + n;
+                    if (!inside) return true; // border is background
+                    const r = rB - BORDER, c = cB - BORDER;
+                    return !qr.isDark(r, c);
+                };
+
+                for (let rB = 0; rB < totalMods; rB++) {
+                    let runStart = -1;
+                    for (let cB = 0; cB <= totalMods; cB++) {
+                        const light = cB < totalMods ? isLightBig(rB, cB) : false; // sentinel false to flush
+                        if (light) {
+                            if (runStart === -1) runStart = cB;
+                        } else if (runStart !== -1) {
+                            const start = toMM(rB, runStart);
+                            const end = toMM(rB, cB - 1);
+                            rapid(start.x, start.y);
+                            lineTo(end.x, end.y);
+                            runStart = -1;
+                        }
+                    }
+                }
+            }
+
+            return cmds.join(';');
+        };
+
+        const onQrGenerate = async () => {
+            const text = (qrTextInput.value || '').trim();
+            if (!text) {
+                updateStatus('Enter text to encode as QR.');
+                return;
+            }
+            const modeRadio = /** @type {HTMLInputElement|null} */(document.querySelector('input[name="qrMode"]:checked'));
+            const inverse = !modeRadio || modeRadio.value === 'inverse';
+            const eccRadio = /** @type {HTMLInputElement|null} */(document.querySelector('input[name="qrEcc"]:checked'));
+            const ecc = (eccRadio && eccRadio.value) ? eccRadio.value.toUpperCase() : 'M';
+            try {
+                updateStatus('Preparing QR…');
+                await ensureQrLib();
+                const g = buildQrGcode(text, inverse, currentStrokeWidth, ecc);
+                // Clear and insert new QR program
+                gcodeTextarea.value = g;
+                parseAndRenderGcode(g);
+                currentProgramKind = 'qr';
+                currentQrConfig = { text, inverse, ecc };
+                setActiveTab(tabGcode);
+                if (qrLastUsedModuleSize && Math.abs(qrLastUsedModuleSize - currentStrokeWidth) > 1e-3) {
+                    updateStatus(`QR ready (${inverse ? 'inverse' : 'normal'}). Module size clamped to ${qrLastUsedModuleSize.toFixed(2)} mm to fit.`);
+                } else {
+                    updateStatus(`QR ready (${inverse ? 'inverse' : 'normal'}). Module size ${currentStrokeWidth.toFixed(2)} mm.`);
+                }
+                hideQrModal();
+            } catch (err) {
+                updateStatus(String(err));
+            }
+        };
+
+        qrGenerateButton.addEventListener('click', onQrGenerate);
+        qrTextInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                onQrGenerate();
+            }
+        });
     </script>
 </body>
 
