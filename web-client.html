@@ -348,6 +348,20 @@
         .drop-zone-compact-content {
             pointer-events: none;
         }
+
+        /* Spinner animation */
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(124, 58, 237, .3);
+            border-radius: 50%;
+            border-top-color: rgba(124, 58, 237, .8);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 
@@ -1710,6 +1724,30 @@ M5`;
             return subpaths.map(subpath => subpath.trim()).filter(subpath => subpath.length > 0);
         };
 
+        // Show loading state in SVG drop zone
+        const showSvgLoading = () => {
+            const dropZoneContent = svgDropZone.querySelector('.drop-zone-compact-content');
+            dropZoneContent.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <div class="spinner"></div>
+                    <span class="text-xs text-purple-300">Converting...</span>
+                </div>
+            `;
+        };
+
+        // Hide loading state in SVG drop zone
+        const hideSvgLoading = () => {
+            const dropZoneContent = svgDropZone.querySelector('.drop-zone-compact-content');
+            dropZoneContent.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(124, 58, 237, .8)" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                    </svg>
+                    <span class="text-xs text-purple-300">SVG</span>
+                </div>
+            `;
+        };
+
         // Handle SVG file drop and selection
         const handleSvgFile = (file) => {
             if (!file || !file.type.includes('svg')) {
@@ -1720,23 +1758,37 @@ M5`;
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
+                    showSvgLoading();
                     updateStatus('Converting SVG to G-code...');
-                    const svgContent = e.target.result;
-                    const gcode = convertSvgToGcode(svgContent);
 
-                    gcodeTextarea.value = gcode;
-                    parseAndRenderGcode(gcode);
-                    currentProgramKind = 'svg';
-                    currentQrConfig = null;
+                    // Use setTimeout to allow UI to update before heavy processing
+                    setTimeout(() => {
+                        try {
+                            const svgContent = e.target.result;
+                            const gcode = convertSvgToGcode(svgContent);
 
-                    updateStatus(`SVG converted to G-code (${file.name})`);
+                            gcodeTextarea.value = gcode;
+                            parseAndRenderGcode(gcode);
+                            currentProgramKind = 'svg';
+                            currentQrConfig = null;
+
+                            updateStatus(`SVG converted to G-code (${file.name})`);
+                        } catch (error) {
+                            updateStatus(error.message);
+                            console.error('SVG conversion error:', error);
+                        } finally {
+                            hideSvgLoading();
+                        }
+                    }, 10);
                 } catch (error) {
                     updateStatus(error.message);
                     console.error('SVG conversion error:', error);
+                    hideSvgLoading();
                 }
             };
             reader.onerror = () => {
                 updateStatus('Failed to read SVG file.');
+                hideSvgLoading();
             };
             reader.readAsText(file);
         };
