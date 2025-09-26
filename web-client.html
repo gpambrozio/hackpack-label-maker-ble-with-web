@@ -495,11 +495,21 @@
                         </div>
                     </div>
                     <div class="space-y-2">
-                        <label for="gcodeTextarea" class="engraved text-sm opacity-80">G-code (mm, origin at
-                            bottom-left)</label>
-                        <textarea id="gcodeTextarea" rows="12" class="input w-full font-mono text-sm"
-                            placeholder="Enter G-code here"></textarea>
-                        <div class="flex flex-wrap items-center gap-2">
+                        <!-- Collapsible G-code Section -->
+                        <div class="border border-gray-600 rounded-md">
+                            <!-- Header with toggle button -->
+                            <button id="gcodeToggleButton" class="w-full flex items-center justify-between p-3 text-left engraved text-sm opacity-80 hover:opacity-100 transition-opacity">
+                                <span>G-code (mm, origin at bottom-left)</span>
+                                <svg id="gcodeToggleIcon" class="w-4 h-4 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+
+                            <!-- Collapsible content (hidden by default) -->
+                            <div id="gcodeContent" class="hidden border-t border-gray-600 p-3 space-y-2">
+                                <textarea id="gcodeTextarea" rows="12" class="input w-full font-mono text-sm"
+                                    placeholder="Enter G-code here"></textarea>
+                                <div class="flex flex-wrap items-center gap-2">
                             <button id="sendSampleGcodeButton" class="btn btn-sm" disabled>Send G-code</button>
                             <button id="clearGCodeButton" class="btn btn-secondary btn-sm" title="Clear G-code input">
                                 Clear
@@ -511,6 +521,8 @@
                                 title="Load Crunch Labs logo sample into viewer">
                                 Load Crunch Labs Logo
                             </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -2300,6 +2312,29 @@ M5`;
 
         // Initialize fonts on page load
         initializeFonts().catch(console.error);
+
+        // ---------------- G-code Collapsible Section ----------------
+
+        // G-code section toggle functionality
+        const gcodeToggleButton = document.getElementById('gcodeToggleButton');
+        const gcodeContent = document.getElementById('gcodeContent');
+        const gcodeToggleIcon = document.getElementById('gcodeToggleIcon');
+
+        const toggleGcodeSection = () => {
+            const isHidden = gcodeContent.classList.contains('hidden');
+
+            if (isHidden) {
+                // Show content
+                gcodeContent.classList.remove('hidden');
+                gcodeToggleIcon.style.transform = 'rotate(180deg)';
+            } else {
+                // Hide content
+                gcodeContent.classList.add('hidden');
+                gcodeToggleIcon.style.transform = 'rotate(0deg)';
+            }
+        };
+
+        gcodeToggleButton.addEventListener('click', toggleGcodeSection);
 
         // ---------------- QR → G-code ----------------
         const showQrModal = async () => {
