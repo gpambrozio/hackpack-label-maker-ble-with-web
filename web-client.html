@@ -1895,20 +1895,20 @@ M5`;
             inter: './Inter-Regular.ttf'
         };
 
-        // Google Fonts query strings for CSS API
-        // Excludes fonts that are already available locally
+        // Direct WOFF2 URLs for Google Fonts (stable URLs that work with CORS)
+        // These are the actual font files served by Google Fonts
         const googleFonts = {
-            'Lato': 'Lato:400',
-            'Montserrat': 'Montserrat:400',
-            'Oswald': 'Oswald:400',
-            'Source Sans Pro': 'Source+Sans+Pro:400',
-            'Raleway': 'Raleway:400',
-            'Ubuntu': 'Ubuntu:400',
-            'Nunito': 'Nunito:400',
-            'Playfair Display': 'Playfair+Display:400',
-            'Merriweather': 'Merriweather:400',
-            'Dancing Script': 'Dancing+Script:400',
-            'Pacifico': 'Pacifico:400'
+            'Lato': 'https://fonts.gstatic.com/s/lato/v24/S6uNw4bGBgp6s-9Yah.woff2',
+            'Montserrat': 'https://fonts.gstatic.com/s/montserrat/v25/JTUSjIg1_tdIhU6Y5E-cbRJtnKITppOI.woff2',
+            'Oswald': 'https://fonts.gstatic.com/s/oswald/v53/TK3_WkUHHAIjg75cFRf3bXL8LICs1_FvsUZiZQ.woff2',
+            'Source Sans Pro': 'https://fonts.gstatic.com/s/sourcesanspro/v22/6xK3dSBYKcSV-LCoeQqfX1RYOo3qOK7l.woff2',
+            'Raleway': 'https://fonts.gstatic.com/s/raleway/v29/1Ptxg8zYS_SKggPN4IAoAp_m.woff2',
+            'Ubuntu': 'https://fonts.gstatic.com/s/ubuntu/v20/4iCs6KVjbNBYlgoKfw72nU6AFw.woff2',
+            'Nunito': 'https://fonts.gstatic.com/s/nunito/v26/XRXV3I6Li01BKofINeaE.woff2',
+            'Playfair Display': 'https://fonts.gstatic.com/s/playfairdisplay/v30/nuFiD-vYSZviVYUb_rj3ij__anPXBYf9pIA.woff2',
+            'Merriweather': 'https://fonts.gstatic.com/s/merriweather/v30/u-440qyriQwlOrhSvowK_l5-fCZM.woff2',
+            'Dancing Script': 'https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6YS-zF4S-kcSWSVi_sxjsohD9F50Ruu7BMSo3ROp-.woff2',
+            'Pacifico': 'https://fonts.gstatic.com/s/pacifico/v22/FwZY7-Qmy14u9lezJ-6H6MmBp0u-.woff2'
         };
 
         // Cache for loaded fonts
@@ -1941,64 +1941,33 @@ M5`;
             });
         };
 
-        // Fetch Google Fonts CSS and extract WOFF2 URL using CORS proxy
-        const getGoogleFontWOFF2Url = async (fontFamily) => {
-            try {
-                // Use cors-anywhere proxy service
-                const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-                const cssUrl = `https://fonts.googleapis.com/css2?family=${fontFamily}&display=swap`;
-
-                const response = await fetch(proxyUrl + cssUrl, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const cssText = await response.text();
-
-                // Extract WOFF2 URL from CSS
-                const woff2Match = cssText.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+\.woff2)\)/);
-
-                if (woff2Match) {
-                    return woff2Match[1];
-                }
-
-                throw new Error('WOFF2 URL not found in CSS');
-            } catch (error) {
-                console.warn('Failed to get Google Font WOFF2 URL:', error);
-                return null;
-            }
-        };
-
-        // Load WOFF2 font with decompression
-        const loadWOFF2Font = async (url) => {
+        // Load WOFF2 font directly from Google Fonts CDN
+        const loadGoogleFont = async (woff2Url) => {
             try {
                 await initWawoff2();
 
-                const response = await fetch(url);
+                console.log(`Fetching Google Font WOFF2 from: ${woff2Url}`);
+                const response = await fetch(woff2Url);
+
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const arrayBuffer = await response.arrayBuffer();
 
-                // Decompress WOFF2 to TTF
+                // Decompress WOFF2 to TTF using wawoff2
                 const decompressed = Module.decompress(new Uint8Array(arrayBuffer));
-
+                
                 // Parse with opentype.js
                 const font = opentype.parse(decompressed.buffer);
 
                 return font;
             } catch (error) {
-                console.warn('Failed to load WOFF2 font:', error);
+                console.warn('Failed to load Google Font WOFF2:', error);
                 return null;
             }
         };
+
 
         // Load TTF font directly from URL
         const loadTTFFont = async (url) => {
@@ -2032,12 +2001,9 @@ M5`;
             if (googleFonts[fontKey]) {
                 try {
                     console.log(`Loading Google Font: ${fontKey}`);
-                    const woff2Url = await getGoogleFontWOFF2Url(googleFonts[fontKey]);
-                    if (woff2Url) {
-                        font = await loadWOFF2Font(woff2Url);
-                        if (font) {
-                            console.log(`Successfully loaded Google Font: ${fontKey}`);
-                        }
+                    font = await loadGoogleFont(googleFonts[fontKey]);
+                    if (font) {
+                        console.log(`Successfully loaded Google Font: ${fontKey}`);
                     }
                 } catch (error) {
                     console.warn(`Google Fonts loading failed for ${fontKey}:`, error);
