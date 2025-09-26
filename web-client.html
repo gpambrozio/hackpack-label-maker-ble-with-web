@@ -15,6 +15,8 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     <!-- OpenType.js for text to SVG path conversion -->
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+    <!-- WOFF2 decompressor for Google Fonts support -->
+    <script src="https://unpkg.com/wawoff2@2.0.1/build/decompress_binding.js"></script>
     <style>
         :root {
             --bg: #0b0b0c;
@@ -609,9 +611,7 @@
                 <div class="space-y-2">
                     <label for="fontSelect" class="engraved text-sm opacity-80">Font</label>
                     <select id="fontSelect" class="input w-full">
-                        <option value="roboto">Roboto (Loading...)</option>
-                        <option value="opensans">Open Sans (Loading...)</option>
-                        <option value="inter">Inter (Loading...)</option>
+                        <!-- Options will be populated dynamically -->
                     </select>
                 </div>
                 <div class="space-y-2">
@@ -1888,36 +1888,191 @@ M5`;
 
         // ---------------- Text → G-code ----------------
 
-        // Font URLs using local TTF files from the same directory
-        const fontUrls = {
+        // Font sources: both local TTF files and Google Fonts
+        const localFonts = {
             roboto: './Roboto-Regular.ttf',
             opensans: './OpenSans-Regular.ttf',
             inter: './Inter-Regular.ttf'
         };
 
+        // Google Fonts query strings for CSS API
+        // Excludes fonts that are already available locally
+        const googleFonts = {
+            'Lato': 'Lato:400',
+            'Montserrat': 'Montserrat:400',
+            'Oswald': 'Oswald:400',
+            'Source Sans Pro': 'Source+Sans+Pro:400',
+            'Raleway': 'Raleway:400',
+            'Ubuntu': 'Ubuntu:400',
+            'Nunito': 'Nunito:400',
+            'Playfair Display': 'Playfair+Display:400',
+            'Merriweather': 'Merriweather:400',
+            'Dancing Script': 'Dancing+Script:400',
+            'Pacifico': 'Pacifico:400'
+        };
+
         // Cache for loaded fonts
         const loadedFonts = {};
 
-        // Load a font and cache it with fallback to built-in simple font
+        // Font loading utilities
+
+        // Initialize WOFF2 decompressor
+        let wawoff2Ready = false;
+
+        const initWawoff2 = async () => {
+            if (wawoff2Ready || typeof Module !== 'undefined') return;
+
+            return new Promise((resolve) => {
+                if (typeof Module !== 'undefined') {
+                    wawoff2Ready = true;
+                    resolve();
+                    return;
+                }
+
+                const checkModule = () => {
+                    if (typeof Module !== 'undefined' && Module.decompress) {
+                        wawoff2Ready = true;
+                        resolve();
+                    } else {
+                        setTimeout(checkModule, 100);
+                    }
+                };
+                checkModule();
+            });
+        };
+
+        // Fetch Google Fonts CSS and extract WOFF2 URL using CORS proxy
+        const getGoogleFontWOFF2Url = async (fontFamily) => {
+            try {
+                // Use cors-anywhere proxy service
+                const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+                const cssUrl = `https://fonts.googleapis.com/css2?family=${fontFamily}&display=swap`;
+
+                const response = await fetch(proxyUrl + cssUrl, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const cssText = await response.text();
+
+                // Extract WOFF2 URL from CSS
+                const woff2Match = cssText.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+\.woff2)\)/);
+
+                if (woff2Match) {
+                    return woff2Match[1];
+                }
+
+                throw new Error('WOFF2 URL not found in CSS');
+            } catch (error) {
+                console.warn('Failed to get Google Font WOFF2 URL:', error);
+                return null;
+            }
+        };
+
+        // Load WOFF2 font with decompression
+        const loadWOFF2Font = async (url) => {
+            try {
+                await initWawoff2();
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const arrayBuffer = await response.arrayBuffer();
+
+                // Decompress WOFF2 to TTF
+                const decompressed = Module.decompress(new Uint8Array(arrayBuffer));
+
+                // Parse with opentype.js
+                const font = opentype.parse(decompressed.buffer);
+
+                return font;
+            } catch (error) {
+                console.warn('Failed to load WOFF2 font:', error);
+                return null;
+            }
+        };
+
+        // Load TTF font directly from URL
+        const loadTTFFont = async (url) => {
+            try {
+                console.log(`Fetching font from: ${url}`);
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const arrayBuffer = await response.arrayBuffer();
+                const font = opentype.parse(arrayBuffer);
+
+                return font;
+            } catch (error) {
+                console.warn('Failed to load TTF font:', error);
+                return null;
+            }
+        };
+
+        // Load a font with multiple fallback strategies
         const loadFont = async (fontKey) => {
             if (loadedFonts[fontKey]) {
                 return loadedFonts[fontKey];
             }
 
-            return new Promise((resolve, reject) => {
-                // Try loading the TTF font directly with opentype.js
-                opentype.load(fontUrls[fontKey], (err, font) => {
-                    if (err) {
-                        console.warn(`Failed to load external font ${fontKey}:`, err);
-                        console.warn('Trying fallback font...');
-                        // Fallback: create a simple built-in font using opentype.js
-                        createSimpleFont(fontKey).then(resolve).catch(reject);
-                    } else {
-                        loadedFonts[fontKey] = font;
-                        resolve(font);
+            let font = null;
+
+            // Strategy 1: Try Google Fonts if available
+            if (googleFonts[fontKey]) {
+                try {
+                    console.log(`Loading Google Font: ${fontKey}`);
+                    const woff2Url = await getGoogleFontWOFF2Url(googleFonts[fontKey]);
+                    if (woff2Url) {
+                        font = await loadWOFF2Font(woff2Url);
+                        if (font) {
+                            console.log(`Successfully loaded Google Font: ${fontKey}`);
+                        }
                     }
-                });
-            });
+                } catch (error) {
+                    console.warn(`Google Fonts loading failed for ${fontKey}:`, error);
+                }
+            }
+
+            // Strategy 2: Try local TTF files
+            if (!font) {
+                const localFontKey = fontKey.toLowerCase().replace(/[^a-z]/g, '');
+                if (localFonts[localFontKey]) {
+                    try {
+                        console.log(`Loading local font: ${fontKey}`);
+                        font = await new Promise((resolve, reject) => {
+                            opentype.load(localFonts[localFontKey], (err, loadedFont) => {
+                                if (err) reject(err);
+                                else resolve(loadedFont);
+                            });
+                        });
+                        if (font) {
+                            console.log(`Successfully loaded local font: ${fontKey}`);
+                        }
+                    } catch (error) {
+                        console.warn(`Local font loading failed for ${fontKey}:`, error);
+                    }
+                }
+            }
+
+            // Strategy 3: Create simple fallback font
+            if (!font) {
+                console.log(`Creating fallback font for: ${fontKey}`);
+                font = await createSimpleFont(fontKey);
+            }
+
+            loadedFonts[fontKey] = font;
+            return font;
         };
 
         // Create a simple built-in font as fallback
@@ -2068,27 +2223,68 @@ M5`;
             }
         };
 
-        // Initialize fonts by updating the select options
+        // Initialize fonts by populating the select with all available fonts
         const initializeFonts = async () => {
-            for (const [key, name] of [['roboto', 'Roboto'], ['opensans', 'Open Sans'], ['inter', 'Inter']]) {
-                const option = fontSelect.querySelector(`option[value="${key}"]`);
-                if (option) {
-                    try {
-                        const font = await loadFont(key);
-                        // Check if it's a fallback font (safely check the property)
-                        const familyName = font.names && font.names.familyName && font.names.familyName.value;
-                        if (familyName && familyName.startsWith('Simple')) {
-                            option.textContent = `${name} (Simple)`;
-                        } else {
-                            option.textContent = name;
-                        }
-                    } catch (error) {
-                        option.textContent = `${name} (Failed)`;
-                        option.disabled = true;
-                        console.error(`Failed to load ${name}:`, error);
-                    }
-                }
+            // Clear existing options
+            fontSelect.innerHTML = '';
+
+            // Create option groups
+            const localGroup = document.createElement('optgroup');
+            localGroup.label = 'Local Fonts';
+
+            const googleGroup = document.createElement('optgroup');
+            googleGroup.label = 'Google Fonts';
+
+            // Add local fonts options first (prioritized)
+            for (const [key, path] of Object.entries(localFonts)) {
+                const fontName = key.charAt(0).toUpperCase() + key.slice(1);
+                const option = document.createElement('option');
+                option.value = fontName;
+                option.textContent = `${fontName} (Local, Loading...)`;
+                localGroup.appendChild(option);
             }
+
+            // Add Google Fonts options
+            for (const [fontName, fontQuery] of Object.entries(googleFonts)) {
+                const option = document.createElement('option');
+                option.value = fontName;
+                option.textContent = `${fontName} (Loading...)`;
+                googleGroup.appendChild(option);
+            }
+
+            // Add groups to select (local first)
+            fontSelect.appendChild(localGroup);
+            fontSelect.appendChild(googleGroup);
+
+            // Set default selection to first local font if available
+            if (Object.keys(localFonts).length > 0) {
+                const firstLocalFont = Object.keys(localFonts)[0];
+                fontSelect.value = firstLocalFont.charAt(0).toUpperCase() + firstLocalFont.slice(1);
+            } else if (Object.keys(googleFonts).length > 0) {
+                fontSelect.value = Object.keys(googleFonts)[0];
+            }
+
+            // Load local fonts first for faster access, then some popular Google fonts
+            const preloadFonts = [
+                // Local fonts (highest priority)
+                ...Object.keys(localFonts).map(key => key.charAt(0).toUpperCase() + key.slice(1)),
+                // Popular Google fonts
+                'Lato', 'Montserrat'
+            ];
+
+            preloadFonts.forEach(async (fontName) => {
+                try {
+                    await loadFont(fontName);
+                    // Update the option text to show successful loading
+                    const option = fontSelect.querySelector(`option[value="${fontName}"]`);
+                    if (option) {
+                        // Remove loading indicator
+                        option.textContent = option.textContent.replace(' (Local, Loading...)', ' (Local)').replace(' (Loading...)', '');
+                    }
+                } catch (error) {
+                    console.warn(`Failed to preload font ${fontName}:`, error);
+                }
+            });
         };
 
         // Text modal event listeners
