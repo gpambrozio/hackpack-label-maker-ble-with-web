@@ -517,6 +517,12 @@
                                         <!-- Options will be populated dynamically -->
                                     </select>
                                 </div>
+                                <div class="space-y-2">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input id="verticalTextCheckbox" type="checkbox" class="rounded border-gray-600 text-purple-600 focus:ring-purple-500 focus:ring-offset-gray-800">
+                                        <span class="engraved text-sm opacity-80">Rotate text 90° clockwise</span>
+                                    </label>
+                                </div>
                                 <div class="flex items-center gap-2 justify-end">
                                     <button id="textGenerateButton" type="button" class="btn btn-sm">Generate G-code</button>
                                 </div>
@@ -711,6 +717,7 @@
     const textModal = document.getElementById('textModal');
     const textInput = document.getElementById('textInput');
     const fontSelect = document.getElementById('fontSelect');
+    const verticalTextCheckbox = document.getElementById('verticalTextCheckbox');
     const textGenerateButton = document.getElementById('textGenerateButton');
     const textCancelButton = document.getElementById('textCancelButton');
     const textCloseButton = document.getElementById('textCloseButton');
@@ -2152,16 +2159,59 @@ M5`;
         };
 
         // Convert text to SVG paths using opentype.js
-        const textToSvgPaths = async (text, fontKey, fontSize) => {
+        const textToSvgPaths = async (text, fontKey, fontSize, isVertical = false) => {
             try {
                 const font = await loadFont(fontKey);
-                const path = font.getPath(text, 0, fontSize, fontSize);
+                let path = font.getPath(text, 0, fontSize, fontSize);
+
+                if (isVertical) {
+                    // Rotate the path geometrically by 90 degrees clockwise
+                    // This transforms the actual path data, not just the SVG presentation
+                    const originalBbox = path.getBoundingBox();
+                    const centerX = (originalBbox.x1 + originalBbox.x2) / 2;
+                    const centerY = (originalBbox.y1 + originalBbox.y2) / 2;
+
+                    // Create a new rotated path
+                    const rotatedPath = new opentype.Path();
+
+                    // Rotate each command in the path by 90 degrees clockwise
+                    path.commands.forEach(cmd => {
+                        const newCmd = { ...cmd };
+
+                        if (cmd.x !== undefined && cmd.y !== undefined) {
+                            // Apply 90-degree clockwise rotation: (x, y) -> (y, -x)
+                            // But first translate to center, rotate, then translate back
+                            const relX = cmd.x - centerX;
+                            const relY = cmd.y - centerY;
+                            newCmd.x = centerX + relY;
+                            newCmd.y = centerY - relX;
+                        }
+
+                        if (cmd.x1 !== undefined && cmd.y1 !== undefined) {
+                            const relX1 = cmd.x1 - centerX;
+                            const relY1 = cmd.y1 - centerY;
+                            newCmd.x1 = centerX + relY1;
+                            newCmd.y1 = centerY - relX1;
+                        }
+
+                        if (cmd.x2 !== undefined && cmd.y2 !== undefined) {
+                            const relX2 = cmd.x2 - centerX;
+                            const relY2 = cmd.y2 - centerY;
+                            newCmd.x2 = centerX + relY2;
+                            newCmd.y2 = centerY - relX2;
+                        }
+
+                        rotatedPath.commands.push(newCmd);
+                    });
+
+                    path = rotatedPath;
+                }
 
                 // Get path bounds for proper scaling
                 const bbox = path.getBoundingBox();
                 const pathData = path.toPathData(3); // 3 decimal precision
 
-                // Create SVG with proper viewBox
+                // Create SVG with proper viewBox (no transforms needed since path is already rotated)
                 const svgContent = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="${bbox.x1} ${bbox.y1} ${bbox.x2 - bbox.x1} ${bbox.y2 - bbox.y1}">
     <path d="${pathData}" fill="currentColor"/>
@@ -2192,6 +2242,7 @@ M5`;
             const text = textInput.value.trim();
             const fontKey = fontSelect.value;
             const fontSize = 32; // Fixed font size
+            const isVertical = verticalTextCheckbox.checked;
 
             if (!text) {
                 updateStatus('Please enter some text to convert.');
@@ -2204,7 +2255,7 @@ M5`;
                 textGenerateButton.textContent = 'Converting...';
 
                 // Convert text to SVG paths
-                const svgContent = await textToSvgPaths(text, fontKey, fontSize);
+                const svgContent = await textToSvgPaths(text, fontKey, fontSize, isVertical);
 
                 // Use existing SVG to G-code converter
                 const gcode = convertSvgToGcode(svgContent);
