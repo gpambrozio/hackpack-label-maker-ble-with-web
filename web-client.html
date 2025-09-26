@@ -495,6 +495,34 @@
                         </div>
                     </div>
                     <div class="space-y-2">
+                        <!-- Collapsible Text to G-code Section -->
+                        <div class="border border-gray-600 rounded-md">
+                            <!-- Header with toggle button -->
+                            <button id="textToggleButton" class="w-full flex items-center justify-between p-3 text-left engraved text-sm opacity-80 hover:opacity-100 transition-opacity">
+                                <span>Text to G-code</span>
+                                <svg id="textToggleIcon" class="w-4 h-4 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+
+                            <!-- Collapsible content (hidden by default) -->
+                            <div id="textContent" class="hidden border-t border-gray-600 p-3 space-y-4">
+                                <div class="space-y-2">
+                                    <label for="textInput" class="engraved text-sm opacity-80">Text to convert</label>
+                                    <input id="textInput" type="text" placeholder="Enter text to engrave" class="input w-full" maxlength="20" />
+                                </div>
+                                <div class="space-y-2">
+                                    <label for="fontSelect" class="engraved text-sm opacity-80">Font</label>
+                                    <select id="fontSelect" class="input w-full">
+                                        <!-- Options will be populated dynamically -->
+                                    </select>
+                                </div>
+                                <div class="flex items-center gap-2 justify-end">
+                                    <button id="textGenerateButton" type="button" class="btn btn-sm">Generate G-code</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Collapsible G-code Section -->
                         <div class="border border-gray-600 rounded-md">
                             <!-- Header with toggle button -->
@@ -683,8 +711,6 @@
     const textModal = document.getElementById('textModal');
     const textInput = document.getElementById('textInput');
     const fontSelect = document.getElementById('fontSelect');
-    const fontSizeSlider = document.getElementById('fontSizeSlider');
-    const fontSizeValue = document.getElementById('fontSizeValue');
     const textGenerateButton = document.getElementById('textGenerateButton');
     const textCancelButton = document.getElementById('textCancelButton');
     const textCloseButton = document.getElementById('textCloseButton');
@@ -2165,7 +2191,7 @@ M5`;
         const handleTextToGcode = async () => {
             const text = textInput.value.trim();
             const fontKey = fontSelect.value;
-            const fontSize = parseInt(fontSizeSlider.value);
+            const fontSize = 32; // Fixed font size
 
             if (!text) {
                 updateStatus('Please enter some text to convert.');
@@ -2189,7 +2215,6 @@ M5`;
                 currentProgramKind = 'text';
                 currentQrConfig = null;
 
-                hideTextModal();
                 updateStatus(`Text converted to G-code: "${text}"`);
 
             } catch (error) {
@@ -2268,16 +2293,9 @@ M5`;
             });
         };
 
-        // Text modal event listeners
-        textToGcodeButton.addEventListener('click', showTextModal);
-        textCancelButton.addEventListener('click', hideTextModal);
-        textCloseButton.addEventListener('click', hideTextModal);
+        // Text generation event listener
         textGenerateButton.addEventListener('click', handleTextToGcode);
 
-        // Font size slider
-        fontSizeSlider.addEventListener('input', (e) => {
-            fontSizeValue.textContent = `${e.target.value}px`;
-        });
 
         // Font selection change - load font on demand
         fontSelect.addEventListener('change', async (e) => {
@@ -2335,6 +2353,31 @@ M5`;
         };
 
         gcodeToggleButton.addEventListener('click', toggleGcodeSection);
+
+        // Text section toggle functionality
+        const textToggleButton = document.getElementById('textToggleButton');
+        const textContent = document.getElementById('textContent');
+        const textToggleIcon = document.getElementById('textToggleIcon');
+
+        const toggleTextSection = () => {
+            const isHidden = textContent.classList.contains('hidden');
+
+            if (isHidden) {
+                // Show content
+                textContent.classList.remove('hidden');
+                textToggleIcon.style.transform = 'rotate(180deg)';
+                // Focus on text input when expanded
+                setTimeout(() => textInput.focus(), 100);
+            } else {
+                // Hide content
+                textContent.classList.add('hidden');
+                textToggleIcon.style.transform = 'rotate(0deg)';
+            }
+        };
+
+        // Update text button to toggle inline section instead of modal
+        textToGcodeButton.addEventListener('click', toggleTextSection);
+        textToggleButton.addEventListener('click', toggleTextSection);
 
         // ---------------- QR → G-code ----------------
         const showQrModal = async () => {
