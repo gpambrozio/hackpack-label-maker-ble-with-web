@@ -712,6 +712,13 @@
     const textCancelButton = document.getElementById('textCancelButton');
     const textCloseButton = document.getElementById('textCloseButton');
 
+        // Helper function to update text send button state
+        const updateTextSendButtonState = () => {
+            const hasGcode = gcodeTextarea.value.trim().length > 0;
+            const isConnected = labelMakerCharacteristic !== null;
+            textSendGcodeButton.disabled = !(hasGcode && isConnected);
+        };
+
         // Preview stroke width in mm
         let currentStrokeWidth = 2.0;
 
@@ -2393,13 +2400,6 @@ M5`;
 
         // Text generation event listener
         textGenerateButton.addEventListener('click', handleTextToGcode);
-
-        // Helper function to update text send button state
-        const updateTextSendButtonState = () => {
-            const hasGcode = gcodeTextarea.value.trim().length > 0;
-            const isConnected = labelMakerCharacteristic !== null;
-            textSendGcodeButton.disabled = !(hasGcode && isConnected);
-        };
 
         // Text send G-code event listener - reuse existing sendSampleGcode function
         textSendGcodeButton.addEventListener('click', sendSampleGcode);
