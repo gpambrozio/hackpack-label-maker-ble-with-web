@@ -1943,7 +1943,7 @@ M5`;
         // Direct WOFF2 URLs for Google Fonts (stable URLs that work with CORS)
         // These are the actual font files served by Google Fonts
         const googleFonts = {
-            'Lato': 'https://fonts.gstatic.com/s/lato/v25/S6u8w4BMUTPHh30AUi-qNiXg7eU0.woff2',
+            'Lato': 'https://fonts.gstatic.com/s/lato/v25/S6u-w4BMUTPHjxsIPx-oPCLC79U1.woff2',
             'Montserrat': 'https://fonts.gstatic.com/s/montserrat/v31/JTUQjIg1_i6t8kCHKm459WxRyS7m0dR9pA.woff2',
             'Oswald': 'https://fonts.gstatic.com/s/oswald/v57/TK3iWkUHHAIjg752GT8Gl-1PKw.woff2',
             'Source Sans Pro': 'https://fonts.gstatic.com/s/sourcesanspro/v22/6xK3dSBYKcSV-LCoeQqfX1RYOo3qOK7l.woff2',
@@ -2323,7 +2323,7 @@ M5`;
                 // Local fonts (highest priority)
                 ...Object.keys(localFonts).map(key => key.charAt(0).toUpperCase() + key.slice(1)),
                 // Popular Google fonts (preload more for better UX)
-                'Lato', 'Montserrat', 'Oswald', 'Ubuntu', 'Nunito'
+                'Lato', 'Montserrat'
             ];
 
             preloadFonts.forEach(async (fontName) => {
