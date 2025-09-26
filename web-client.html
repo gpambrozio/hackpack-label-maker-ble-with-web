@@ -294,6 +294,30 @@
         .drawing-cursor {
             cursor: crosshair;
         }
+
+        /* SVG Drop Zone */
+        .drop-zone {
+            border: 2px dashed rgba(124, 58, 237, .5);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            background: rgba(124, 58, 237, .05);
+            transition: all .2s ease;
+        }
+
+        .drop-zone.drag-over {
+            border-color: rgba(124, 58, 237, .8);
+            background: rgba(124, 58, 237, .15);
+            transform: scale(1.02);
+        }
+
+        .drop-zone input[type="file"] {
+            display: none;
+        }
+
+        .drop-zone-content {
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -374,6 +398,17 @@
                 <!-- G-code section -->
                 <section id="sectionGcode" class="relative z-10 space-y-3 h-full">
                     <div class="space-y-2">
+                        <!-- SVG Drop Zone -->
+                        <div class="drop-zone" id="svgDropZone">
+                            <input type="file" id="svgFileInput" accept=".svg,image/svg+xml">
+                            <div class="drop-zone-content">
+                                <svg class="mx-auto mb-2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(124, 58, 237, .8)" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                </svg>
+                                <div class="text-sm text-purple-300 mb-1">Drop SVG file here or click to browse</div>
+                                <div class="text-xs text-slate-400">SVG will be converted to G-code paths</div>
+                            </div>
+                        </div>
 
                         <div class="engraved text-sm opacity-80">G-Code Preview</div>
 
@@ -529,12 +564,15 @@
     const qrGenerateButton = document.getElementById('qrGenerateButton');
     const qrCancelButton = document.getElementById('qrCancelButton');
     const qrCloseButton = document.getElementById('qrCloseButton');
+    // SVG elements
+    const svgDropZone = document.getElementById('svgDropZone');
+    const svgFileInput = document.getElementById('svgFileInput');
 
         // Preview stroke width in mm
         let currentStrokeWidth = 2.0;
 
     // Track current program kind and QR config for auto-recalc
-    let currentProgramKind = 'manual'; // 'manual' | 'qr'
+    let currentProgramKind = 'manual'; // 'manual' | 'qr' | 'svg'
     let currentQrConfig = null; // { text: string, inverse: boolean }
     // Track the last used module size for QR (may be clamped vs. slider value)
     let qrLastUsedModuleSize = null;
@@ -1520,6 +1558,165 @@ M5`;
             gcodeTextarea.value = g;
             parseAndRenderGcode(g);
         })();
+
+        // ---------------- SVG → G-code ----------------
+
+        // SVG to G-code conversion (based on toxnico/svg2gcode)
+        const convertSvgToGcode = (svgContent) => {
+            try {
+                // Create a temporary SVG element to parse the content
+                const parser = new DOMParser();
+                const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
+                const svgElement = svgDoc.documentElement;
+
+                if (svgElement.tagName !== 'svg') {
+                    throw new Error('Invalid SVG file');
+                }
+
+                // Get all path elements
+                const paths = svgElement.querySelectorAll('path');
+                if (paths.length === 0) {
+                    throw new Error('No paths found in SVG. Convert shapes to paths first.');
+                }
+
+                const gcode = [];
+                gcode.push('G90'); // Absolute positioning
+                gcode.push('M5');  // Pen up initially
+
+                // Get SVG viewBox for scaling
+                const viewBox = svgElement.getAttribute('viewBox');
+                let scaleX = 1, scaleY = 1, offsetX = 0, offsetY = 0;
+
+                // Scale to fit within 260x30mm area with some margin
+                const maxWidth = 260;
+                const maxHeight = 30;
+
+                if (viewBox) {
+                    const [minX, minY, width, height] = viewBox.split(' ').map(Number);
+                    scaleX = maxWidth / width;
+                    scaleY = maxHeight / height;
+                    // Use uniform scaling (maintain aspect ratio)
+                    const scale = Math.min(scaleX, scaleY);
+                    scaleX = scaleY = scale;
+                    offsetX = -minX;
+                    offsetY = -minY;
+                }
+
+                paths.forEach((path) => {
+                    const d = path.getAttribute('d');
+                    if (!d) return;
+
+                    // Create a temporary path element to use browser's path methods
+                    const tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                    const tempPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    tempPath.setAttribute('d', d);
+                    tempSvg.appendChild(tempPath);
+                    document.body.appendChild(tempSvg);
+
+                    try {
+                        const totalLength = tempPath.getTotalLength();
+                        const numPoints = Math.max(10, Math.floor(totalLength / 0.5)); // Point every 0.5 units
+
+                        let isFirstPoint = true;
+
+                        for (let i = 0; i <= numPoints; i++) {
+                            const distance = (i / numPoints) * totalLength;
+                            const point = tempPath.getPointAtLength(distance);
+
+                            // Apply scaling and offset
+                            const x = (point.x + offsetX) * scaleX;
+                            const y = (point.y + offsetY) * scaleY;
+
+                            // Flip Y coordinate (SVG has origin at top-left, G-code at bottom-left)
+                            const flippedY = maxHeight - y;
+
+                            // Clamp to area bounds
+                            const clampedX = Math.max(0, Math.min(maxWidth, x));
+                            const clampedY = Math.max(0, Math.min(maxHeight, flippedY));
+
+                            if (isFirstPoint) {
+                                gcode.push(`G0 X${clampedX.toFixed(3)} Y${clampedY.toFixed(3)}`);
+                                gcode.push('M3'); // Pen down
+                                isFirstPoint = false;
+                            } else {
+                                gcode.push(`G1 X${clampedX.toFixed(3)} Y${clampedY.toFixed(3)}`);
+                            }
+                        }
+
+                        gcode.push('M5'); // Pen up after each path
+
+                    } finally {
+                        document.body.removeChild(tempSvg);
+                    }
+                });
+
+                return gcode.join(';');
+
+            } catch (error) {
+                throw new Error(`SVG conversion failed: ${error.message}`);
+            }
+        };
+
+        // Handle SVG file drop and selection
+        const handleSvgFile = (file) => {
+            if (!file || !file.type.includes('svg')) {
+                updateStatus('Please select a valid SVG file.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    updateStatus('Converting SVG to G-code...');
+                    const svgContent = e.target.result;
+                    const gcode = convertSvgToGcode(svgContent);
+
+                    gcodeTextarea.value = gcode;
+                    parseAndRenderGcode(gcode);
+                    currentProgramKind = 'svg';
+                    currentQrConfig = null;
+
+                    updateStatus(`SVG converted to G-code (${file.name})`);
+                } catch (error) {
+                    updateStatus(error.message);
+                    console.error('SVG conversion error:', error);
+                }
+            };
+            reader.onerror = () => {
+                updateStatus('Failed to read SVG file.');
+            };
+            reader.readAsText(file);
+        };
+
+        // SVG Drop zone events
+        svgDropZone.addEventListener('click', () => {
+            svgFileInput.click();
+        });
+
+        svgFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleSvgFile(file);
+        });
+
+        svgDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            svgDropZone.classList.add('drag-over');
+        });
+
+        svgDropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            svgDropZone.classList.remove('drag-over');
+        });
+
+        svgDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            svgDropZone.classList.remove('drag-over');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleSvgFile(files[0]);
+            }
+        });
 
         // ---------------- QR → G-code ----------------
         const showQrModal = async () => {
