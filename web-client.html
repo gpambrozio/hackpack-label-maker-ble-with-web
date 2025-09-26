@@ -712,13 +712,6 @@
     const textCancelButton = document.getElementById('textCancelButton');
     const textCloseButton = document.getElementById('textCloseButton');
 
-        // Helper function to update text send button state
-        const updateTextSendButtonState = () => {
-            const hasGcode = gcodeTextarea.value.trim().length > 0;
-            const isConnected = labelMakerCharacteristic !== null;
-            textSendGcodeButton.disabled = !(hasGcode && isConnected);
-        };
-
         // Preview stroke width in mm
         let currentStrokeWidth = 2.0;
 
@@ -811,9 +804,8 @@
                 penUpButton.disabled = false;
                 sendTextButton.disabled = false;
                 sendSampleGcodeButton.disabled = false;
+                textSendGcodeButton.disabled = false;
                 disconnectButton.disabled = false;
-                // Update text send button state based on connection and G-code availability
-                updateTextSendButtonState();
 
             } catch (error) {
                 updateStatus(`Connection failed: ${error}`);
@@ -1498,7 +1490,6 @@ M5`;
             if (needSep) existing += ';';
             gcodeTextarea.value = existing + lines.join(';');
             parseAndRenderGcode(gcodeTextarea.value);
-            updateTextSendButtonState();
         };
 
         const setDrawEnabled = (on) => {
@@ -1617,7 +1608,6 @@ M5`;
             parseAndRenderGcode(g);
             currentProgramKind = 'manual';
             currentQrConfig = null;
-            updateTextSendButtonState();
         };
 
         /**
@@ -1661,7 +1651,6 @@ M5`;
             gcodeTextarea.value = crunchLogoGcode;
             parseAndRenderGcode(crunchLogoGcode);
             updateStatus('Loaded Crunch Labs logo sample into viewer.');
-            updateTextSendButtonState();
         };
         loadCrunchLabsButton.addEventListener('click', loadCrunchLabs);
         clearGCodeButton.addEventListener('click', () => {
@@ -1669,11 +1658,9 @@ M5`;
             parseAndRenderGcode('');
             currentProgramKind = 'manual';
             currentQrConfig = null;
-            updateTextSendButtonState();
         });
         gcodeTextarea.addEventListener('input', (e) => {
             parseAndRenderGcode(e.target.value);
-            updateTextSendButtonState();
         });
         thicknessSlider.addEventListener('input', async (e) => {
             const v = parseFloat(e.target.value);
@@ -1686,7 +1673,6 @@ M5`;
                     const g = buildQrGcode(currentQrConfig.text, currentQrConfig.inverse, currentStrokeWidth, currentQrConfig.ecc || 'M');
                     gcodeTextarea.value = g;
                     parseAndRenderGcode(g);
-                    updateTextSendButtonState();
                     if (qrLastUsedModuleSize && Math.abs(qrLastUsedModuleSize - currentStrokeWidth) > 1e-3) {
                         updateStatus(`QR re-generated. Module size clamped to ${qrLastUsedModuleSize.toFixed(2)} mm to fit.`);
                     } else {
@@ -1740,7 +1726,6 @@ M5`;
             const g = buildSampleGcode();
             gcodeTextarea.value = g;
             parseAndRenderGcode(g);
-            updateTextSendButtonState();
         })();
 
         // ---------------- SVG → G-code ----------------
@@ -1909,7 +1894,6 @@ M5`;
                             parseAndRenderGcode(gcode);
                             currentProgramKind = 'svg';
                             currentQrConfig = null;
-                            updateTextSendButtonState();
 
                             updateStatus(`SVG converted to G-code (${file.name})`);
                         } catch (error) {
@@ -2318,7 +2302,6 @@ M5`;
                 currentQrConfig = null;
 
                 // Update send button state now that we have G-code
-                updateTextSendButtonState();
 
                 updateStatus(`Text converted to G-code: "${text}"`);
 
@@ -2684,7 +2667,6 @@ M5`;
                 parseAndRenderGcode(g);
                 currentProgramKind = 'qr';
                 currentQrConfig = { text, inverse, ecc };
-                updateTextSendButtonState();
                 setActiveTab(tabGcode);
                 if (qrLastUsedModuleSize && Math.abs(qrLastUsedModuleSize - currentStrokeWidth) > 1e-3) {
                     updateStatus(`QR ready (${inverse ? 'inverse' : 'normal'}). Module size clamped to ${qrLastUsedModuleSize.toFixed(2)} mm to fit.`);
