@@ -512,6 +512,23 @@
                                         <span class="engraved text-sm opacity-80">Rotate text 90° clockwise</span>
                                     </label>
                                 </div>
+                                <div class="space-y-2">
+                                    <label class="engraved text-sm opacity-80">Text Alignment</label>
+                                    <div class="flex gap-4 text-sm">
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="textAlignment" value="left" checked class="text-purple-600 focus:ring-purple-500 focus:ring-offset-gray-800">
+                                            <span class="engraved text-sm opacity-80">Left</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="textAlignment" value="center" class="text-purple-600 focus:ring-purple-500 focus:ring-offset-gray-800">
+                                            <span class="engraved text-sm opacity-80">Center</span>
+                                        </label>
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="textAlignment" value="right" class="text-purple-600 focus:ring-purple-500 focus:ring-offset-gray-800">
+                                            <span class="engraved text-sm opacity-80">Right</span>
+                                        </label>
+                                    </div>
+                                </div>
                                 <div class="flex items-center gap-2 justify-end">
                                     <button id="textGenerateButton" type="button" class="btn btn-sm">Generate G-code</button>
                                     <button id="textSendGcodeButton" type="button" class="btn btn-sm" disabled>Send G-code</button>
@@ -2184,7 +2201,7 @@ M5`;
         };
 
         // Convert text to SVG paths using opentype.js
-        const textToSvgPaths = async (text, fontKey, fontSize, isVertical = false) => {
+        const textToSvgPaths = async (text, fontKey, fontSize, isVertical = false, alignment = 'left') => {
             try {
                 const font = await loadFont(fontKey);
 
@@ -2192,13 +2209,36 @@ M5`;
                 const lines = text.split('\n');
                 const lineSpacing = fontSize * 1.2; // 1.2x line height
 
+                // Calculate maximum line width for alignment
+                let maxLineWidth = 0;
+                const lineWidths = lines.map(line => {
+                    if (line.trim()) {
+                        const width = font.getAdvanceWidth(line, fontSize);
+                        maxLineWidth = Math.max(maxLineWidth, width);
+                        return width;
+                    }
+                    return 0;
+                });
+
                 // Create combined path for all lines
                 let combinedPath = new opentype.Path();
 
                 lines.forEach((line, lineIndex) => {
                     if (line.trim()) { // Only process non-empty lines
                         const yPosition = lineIndex * lineSpacing;
-                        const linePath = font.getPath(line, 0, fontSize + yPosition, fontSize);
+
+                        // Calculate X position based on alignment
+                        let xPosition = 0;
+                        const lineWidth = lineWidths[lineIndex];
+
+                        if (alignment === 'center') {
+                            xPosition = (maxLineWidth - lineWidth) / 2;
+                        } else if (alignment === 'right') {
+                            xPosition = maxLineWidth - lineWidth;
+                        }
+                        // left alignment uses xPosition = 0
+
+                        const linePath = font.getPath(line, xPosition, fontSize + yPosition, fontSize);
 
                         // Add line path commands to combined path
                         linePath.commands.forEach(cmd => {
@@ -2288,6 +2328,7 @@ M5`;
             const fontKey = fontSelect.value;
             const fontSize = 32; // Fixed font size
             const isVertical = verticalTextCheckbox.checked;
+            const alignment = document.querySelector('input[name="textAlignment"]:checked')?.value || 'left';
 
             if (!text) {
                 updateStatus('Please enter some text to convert.');
@@ -2300,7 +2341,7 @@ M5`;
                 textGenerateButton.textContent = 'Converting...';
 
                 // Convert text to SVG paths
-                const svgContent = await textToSvgPaths(text, fontKey, fontSize, isVertical);
+                const svgContent = await textToSvgPaths(text, fontKey, fontSize, isVertical, alignment);
 
                 // Use existing SVG to G-code converter
                 const gcode = convertSvgToGcode(svgContent);
