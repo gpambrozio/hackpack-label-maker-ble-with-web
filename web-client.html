@@ -1898,7 +1898,7 @@ M5`;
         // Direct WOFF2 URLs for Google Fonts (stable URLs that work with CORS)
         // These are the actual font files served by Google Fonts
         const googleFonts = {
-            'Lato': 'https://fonts.gstatic.com/s/lato/v24/S6uNw4bGBgp6s-9Yah.woff2',
+            'Lato': 'https://fonts.gstatic.com/s/firasans/v16/va9E4kDNxMZdWfMOD5Vvl4jL.woff2',
             'Montserrat': 'https://fonts.gstatic.com/s/montserrat/v25/JTUSjIg1_tdIhU6Y5E-cbRJtnKITppOI.woff2',
             'Oswald': 'https://fonts.gstatic.com/s/oswald/v53/TK3_WkUHHAIjg75cFRf3bXL8LICs1_FvsUZiZQ.woff2',
             'Source Sans Pro': 'https://fonts.gstatic.com/s/sourcesanspro/v22/6xK3dSBYKcSV-LCoeQqfX1RYOo3qOK7l.woff2',
@@ -1956,7 +1956,7 @@ M5`;
                 const arrayBuffer = await response.arrayBuffer();
 
                 // Decompress WOFF2 to TTF using wawoff2
-                const decompressed = Module.decompress(new Uint8Array(arrayBuffer));
+                const decompressed = Uint8Array.from(Module.decompress(arrayBuffer));
                 
                 // Parse with opentype.js
                 const font = opentype.parse(decompressed.buffer);
