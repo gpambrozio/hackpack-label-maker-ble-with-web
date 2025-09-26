@@ -745,8 +745,7 @@
 
                 // Request a Bluetooth device
                 labelMakerDevice = await navigator.bluetooth.requestDevice({
-                    // filters: [{ namePrefix: 'LABEL' }],
-                    acceptAllDevices: true,
+                    filters: [{ namePrefix: 'LABEL' }],
                     optionalServices: [SERVICE_UUID]
                 });
 
