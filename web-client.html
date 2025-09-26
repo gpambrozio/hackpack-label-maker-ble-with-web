@@ -1561,7 +1561,7 @@ M5`;
 
         // ---------------- SVG → G-code ----------------
 
-        // SVG to G-code conversion (based on toxnico/svg2gcode)
+        // SVG to G-code conversion with proper MoveTo handling
         const convertSvgToGcode = (svgContent) => {
             try {
                 // Create a temporary SVG element to parse the content
@@ -1580,6 +1580,7 @@ M5`;
                 }
 
                 const gcode = [];
+                gcode.push('G21'); // Millimeter units
                 gcode.push('G90'); // Absolute positioning
                 gcode.push('M5');  // Pen up initially
 
@@ -1587,7 +1588,7 @@ M5`;
                 const viewBox = svgElement.getAttribute('viewBox');
                 let scaleX = 1, scaleY = 1, offsetX = 0, offsetY = 0;
 
-                // Scale to fit within 260x30mm area with some margin
+                // Scale to fit within 260x30mm area
                 const maxWidth = 260;
                 const maxHeight = 30;
 
@@ -1602,52 +1603,62 @@ M5`;
                     offsetY = -minY;
                 }
 
+                // Helper to convert SVG coordinates to G-code coordinates
+                const convertPoint = (svgX, svgY) => {
+                    const x = (svgX + offsetX) * scaleX;
+                    const y = (svgY + offsetY) * scaleY;
+                    // Flip Y coordinate (SVG has origin at top-left, G-code at bottom-left)
+                    const flippedY = maxHeight - y;
+                    // Clamp to area bounds
+                    return {
+                        x: Math.max(0, Math.min(maxWidth, x)),
+                        y: Math.max(0, Math.min(maxHeight, flippedY))
+                    };
+                };
+
                 paths.forEach((path) => {
                     const d = path.getAttribute('d');
                     if (!d) return;
 
-                    // Create a temporary path element to use browser's path methods
-                    const tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                    const tempPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    tempPath.setAttribute('d', d);
-                    tempSvg.appendChild(tempPath);
-                    document.body.appendChild(tempSvg);
+                    // Split path by MoveTo commands to create separate subpaths
+                    const subpaths = splitPathByMoveTo(d);
 
-                    try {
-                        const totalLength = tempPath.getTotalLength();
-                        const numPoints = Math.max(10, Math.floor(totalLength / 0.5)); // Point every 0.5 units
+                    subpaths.forEach(subpathData => {
+                        if (!subpathData.trim()) return;
 
-                        let isFirstPoint = true;
+                        // Create a temporary path element for each subpath
+                        const tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                        const tempPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        tempPath.setAttribute('d', subpathData);
+                        tempSvg.appendChild(tempPath);
+                        document.body.appendChild(tempSvg);
 
-                        for (let i = 0; i <= numPoints; i++) {
-                            const distance = (i / numPoints) * totalLength;
-                            const point = tempPath.getPointAtLength(distance);
+                        try {
+                            const totalLength = tempPath.getTotalLength();
+                            if (totalLength === 0) return; // Skip zero-length paths
 
-                            // Apply scaling and offset
-                            const x = (point.x + offsetX) * scaleX;
-                            const y = (point.y + offsetY) * scaleY;
+                            const numPoints = Math.max(10, Math.floor(totalLength / 0.5)); // Point every 0.5 units
 
-                            // Flip Y coordinate (SVG has origin at top-left, G-code at bottom-left)
-                            const flippedY = maxHeight - y;
+                            // Move to start of subpath
+                            const startPoint = tempPath.getPointAtLength(0);
+                            const startConverted = convertPoint(startPoint.x, startPoint.y);
+                            gcode.push(`G0 X${startConverted.x.toFixed(3)} Y${startConverted.y.toFixed(3)}`);
+                            gcode.push('M3'); // Pen down
 
-                            // Clamp to area bounds
-                            const clampedX = Math.max(0, Math.min(maxWidth, x));
-                            const clampedY = Math.max(0, Math.min(maxHeight, flippedY));
-
-                            if (isFirstPoint) {
-                                gcode.push(`G0 X${clampedX.toFixed(3)} Y${clampedY.toFixed(3)}`);
-                                gcode.push('M3'); // Pen down
-                                isFirstPoint = false;
-                            } else {
-                                gcode.push(`G1 X${clampedX.toFixed(3)} Y${clampedY.toFixed(3)}`);
+                            // Sample points along the path
+                            for (let i = 1; i <= numPoints; i++) {
+                                const distance = (i / numPoints) * totalLength;
+                                const point = tempPath.getPointAtLength(distance);
+                                const converted = convertPoint(point.x, point.y);
+                                gcode.push(`G1 X${converted.x.toFixed(3)} Y${converted.y.toFixed(3)}`);
                             }
+
+                            gcode.push('M5'); // Pen up after each subpath
+
+                        } finally {
+                            document.body.removeChild(tempSvg);
                         }
-
-                        gcode.push('M5'); // Pen up after each path
-
-                    } finally {
-                        document.body.removeChild(tempSvg);
-                    }
+                    });
                 });
 
                 return gcode.join(';');
@@ -1655,6 +1666,16 @@ M5`;
             } catch (error) {
                 throw new Error(`SVG conversion failed: ${error.message}`);
             }
+        };
+
+        // Split SVG path data by MoveTo commands
+        const splitPathByMoveTo = (pathData) => {
+            // Find all MoveTo commands (both M and m) and split the path
+            // This regex captures MoveTo commands and everything that follows until the next MoveTo
+            const moveToRegex = /[Mm][^Mm]*/g;
+            const subpaths = pathData.match(moveToRegex) || [];
+
+            return subpaths.map(subpath => subpath.trim()).filter(subpath => subpath.length > 0);
         };
 
         // Handle SVG file drop and selection
