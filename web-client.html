@@ -318,6 +318,36 @@
         .drop-zone-content {
             pointer-events: none;
         }
+
+        /* Compact SVG drop zone for inline use */
+        .drop-zone-compact {
+            border: 1px dashed rgba(124, 58, 237, .6);
+            border-radius: 6px;
+            padding: 8px 12px;
+            text-align: center;
+            background: rgba(124, 58, 237, .08);
+            transition: all .2s ease;
+            cursor: pointer;
+            min-width: 120px;
+        }
+
+        .drop-zone-compact:hover {
+            border-color: rgba(124, 58, 237, .8);
+            background: rgba(124, 58, 237, .12);
+        }
+
+        .drop-zone-compact.drag-over {
+            border-color: rgba(124, 58, 237, .9);
+            background: rgba(124, 58, 237, .2);
+        }
+
+        .drop-zone-compact input[type="file"] {
+            display: none;
+        }
+
+        .drop-zone-compact-content {
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -398,30 +428,32 @@
                 <!-- G-code section -->
                 <section id="sectionGcode" class="relative z-10 space-y-3 h-full">
                     <div class="space-y-2">
-                        <!-- SVG Drop Zone -->
-                        <div class="drop-zone" id="svgDropZone">
-                            <input type="file" id="svgFileInput" accept=".svg,image/svg+xml">
-                            <div class="drop-zone-content">
-                                <svg class="mx-auto mb-2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(124, 58, 237, .8)" stroke-width="2">
-                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-                                </svg>
-                                <div class="text-sm text-purple-300 mb-1">Drop SVG file here or click to browse</div>
-                                <div class="text-xs text-slate-400">SVG will be converted to G-code paths</div>
-                            </div>
-                        </div>
-
                         <div class="engraved text-sm opacity-80">G-Code Preview</div>
 
-                        <div class="flex items-center gap-3 max-w-md">
-                            <label for="thicknessSlider" class="text-xs text-slate-300">Tool thickness</label>
-                            <input id="thicknessSlider" type="range" min="0.2" max="5" step="0.1" value="2"
-                                class="w-44">
-                            <span id="thicknessValue" class="text-xs text-slate-400">2.0 mm</span>
-                            <span class="text-xs text-slate-400">Area: 260 × 30 mm</span>
-                            <button id="toggleDrawButton" class="btn btn-secondary btn-sm ml-2"
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <div class="flex items-center gap-2">
+                                <label for="thicknessSlider" class="text-xs text-slate-300 whitespace-nowrap">Tool thickness</label>
+                                <input id="thicknessSlider" type="range" min="0.2" max="5" step="0.1" value="2"
+                                    class="w-28">
+                                <span id="thicknessValue" class="text-xs text-slate-400 whitespace-nowrap">2.0 mm</span>
+                            </div>
+                            <span class="text-xs text-slate-400 whitespace-nowrap">Area: 260 × 30 mm</span>
+                            <button id="toggleDrawButton" class="btn btn-secondary btn-sm"
                                 title="Toggle freehand drawing on the preview">
                                 Enable Draw
                             </button>
+                            <!-- Compact SVG Drop Zone -->
+                            <div class="drop-zone-compact" id="svgDropZone" title="Click or drop SVG file to convert to G-code">
+                                <input type="file" id="svgFileInput" accept=".svg,image/svg+xml">
+                                <div class="drop-zone-compact-content">
+                                    <div class="flex items-center gap-2">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(124, 58, 237, .8)" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                        </svg>
+                                        <span class="text-xs text-purple-300">SVG</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="preview-frame p-0 md:p-2">
                             <div class="tape-surface w-fit">
