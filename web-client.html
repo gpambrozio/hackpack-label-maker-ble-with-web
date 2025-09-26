@@ -13,6 +13,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- QR code generator (MIT) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+    <!-- OpenType.js for text to SVG path conversion -->
+    <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
     <style>
         :root {
             --bg: #0b0b0c;
@@ -468,6 +470,17 @@
                                     </div>
                                 </div>
                             </div>
+                            <!-- Text to G-code Button -->
+                            <button id="textToGcodeButton" class="btn btn-secondary btn-sm" title="Convert text to G-code using fonts">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14,2 14,8 20,8"/>
+                                    <line x1="16" y1="13" x2="8" y2="13"/>
+                                    <line x1="16" y1="17" x2="8" y2="17"/>
+                                    <polyline points="10,9 9,9 8,9"/>
+                                </svg>
+                                Text
+                            </button>
                         </div>
                         <div class="preview-frame p-0 md:p-2">
                             <div class="tape-surface w-fit">
@@ -576,6 +589,46 @@
         </div>
     </div>
 
+    <!-- Text to G-code Modal -->
+    <div id="textModal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content max-w-lg">
+            <div class="flex items-center justify-between p-4 border-b border-slate-600/40">
+                <h2 class="text-lg font-semibold text-slate-100">Text to G-code</h2>
+                <button id="textCloseButton" type="button" class="text-slate-400 hover:text-slate-200">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4 space-y-4">
+                <div class="space-y-2">
+                    <label for="textInput" class="engraved text-sm opacity-80">Text to convert</label>
+                    <input id="textInput" type="text" placeholder="Enter text to engrave" class="input w-full" maxlength="20" />
+                </div>
+                <div class="space-y-2">
+                    <label for="fontSelect" class="engraved text-sm opacity-80">Font</label>
+                    <select id="fontSelect" class="input w-full">
+                        <option value="roboto">Roboto (Loading...)</option>
+                        <option value="opensans">Open Sans (Loading...)</option>
+                        <option value="montserrat">Montserrat (Loading...)</option>
+                    </select>
+                </div>
+                <div class="space-y-2">
+                    <label for="fontSizeSlider" class="engraved text-sm opacity-80">Font Size</label>
+                    <div class="flex items-center gap-3">
+                        <input id="fontSizeSlider" type="range" min="8" max="24" step="1" value="16" class="w-full">
+                        <span id="fontSizeValue" class="text-xs text-slate-400 whitespace-nowrap">16px</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-600/40 flex items-center gap-2 justify-end">
+                <button id="textCancelButton" type="button" class="btn-secondary btn-sm">Cancel</button>
+                <button id="textGenerateButton" type="button" class="btn btn-sm">Generate G-code</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Global variables to hold the device and characteristic
         let labelMakerDevice = null;
@@ -613,12 +666,22 @@
     // SVG elements
     const svgDropZone = document.getElementById('svgDropZone');
     const svgFileInput = document.getElementById('svgFileInput');
+    // Text to G-code elements
+    const textToGcodeButton = document.getElementById('textToGcodeButton');
+    const textModal = document.getElementById('textModal');
+    const textInput = document.getElementById('textInput');
+    const fontSelect = document.getElementById('fontSelect');
+    const fontSizeSlider = document.getElementById('fontSizeSlider');
+    const fontSizeValue = document.getElementById('fontSizeValue');
+    const textGenerateButton = document.getElementById('textGenerateButton');
+    const textCancelButton = document.getElementById('textCancelButton');
+    const textCloseButton = document.getElementById('textCloseButton');
 
         // Preview stroke width in mm
         let currentStrokeWidth = 2.0;
 
     // Track current program kind and QR config for auto-recalc
-    let currentProgramKind = 'manual'; // 'manual' | 'qr' | 'svg'
+    let currentProgramKind = 'manual'; // 'manual' | 'qr' | 'svg' | 'text'
     let currentQrConfig = null; // { text: string, inverse: boolean }
     // Track the last used module size for QR (may be clamped vs. slider value)
     let qrLastUsedModuleSize = null;
@@ -1822,6 +1885,142 @@ M5`;
                 handleSvgFile(files[0]);
             }
         });
+
+        // ---------------- Text → G-code ----------------
+
+        // Font URLs for popular web fonts
+        const fontUrls = {
+            roboto: 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-Regular.ttf',
+            opensans: 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/opensans/OpenSans-Regular.ttf',
+            montserrat: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/montserrat/Montserrat-Regular.ttf'
+        };
+
+        // Cache for loaded fonts
+        const loadedFonts = {};
+
+        // Load a font and cache it
+        const loadFont = async (fontKey) => {
+            if (loadedFonts[fontKey]) {
+                return loadedFonts[fontKey];
+            }
+
+            return new Promise((resolve, reject) => {
+                opentype.load(fontUrls[fontKey], (err, font) => {
+                    if (err) {
+                        reject(new Error(`Failed to load ${fontKey}: ${err.message}`));
+                    } else {
+                        loadedFonts[fontKey] = font;
+                        resolve(font);
+                    }
+                });
+            });
+        };
+
+        // Convert text to SVG paths using opentype.js
+        const textToSvgPaths = async (text, fontKey, fontSize) => {
+            try {
+                const font = await loadFont(fontKey);
+                const path = font.getPath(text, 0, fontSize, fontSize);
+
+                // Get path bounds for proper scaling
+                const bbox = path.getBoundingBox();
+                const pathData = path.toPathData(3); // 3 decimal precision
+
+                // Create SVG with proper viewBox
+                const svgContent = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bbox.x1} ${bbox.y1} ${bbox.x2 - bbox.x1} ${bbox.y2 - bbox.y1}">
+    <path d="${pathData}" fill="currentColor"/>
+</svg>`;
+
+                return svgContent;
+            } catch (error) {
+                throw new Error(`Text conversion failed: ${error.message}`);
+            }
+        };
+
+        // Show text modal
+        const showTextModal = () => {
+            textInput.value = 'Hello World';
+            fontSizeSlider.value = '16';
+            fontSizeValue.textContent = '16px';
+            textModal.classList.remove('hidden');
+            textInput.focus();
+        };
+
+        // Hide text modal
+        const hideTextModal = () => {
+            textModal.classList.add('hidden');
+        };
+
+        // Handle text to G-code conversion
+        const handleTextToGcode = async () => {
+            const text = textInput.value.trim();
+            const fontKey = fontSelect.value;
+            const fontSize = parseInt(fontSizeSlider.value);
+
+            if (!text) {
+                updateStatus('Please enter some text to convert.');
+                return;
+            }
+
+            try {
+                updateStatus('Converting text to G-code...');
+                textGenerateButton.disabled = true;
+                textGenerateButton.textContent = 'Converting...';
+
+                // Convert text to SVG paths
+                const svgContent = await textToSvgPaths(text, fontKey, fontSize);
+
+                // Use existing SVG to G-code converter
+                const gcode = convertSvgToGcode(svgContent);
+
+                // Update UI
+                gcodeTextarea.value = gcode;
+                parseAndRenderGcode(gcode);
+                currentProgramKind = 'text';
+                currentQrConfig = null;
+
+                hideTextModal();
+                updateStatus(`Text converted to G-code: "${text}"`);
+
+            } catch (error) {
+                updateStatus(error.message);
+                console.error('Text to G-code conversion error:', error);
+            } finally {
+                textGenerateButton.disabled = false;
+                textGenerateButton.textContent = 'Generate G-code';
+            }
+        };
+
+        // Initialize fonts by updating the select options
+        const initializeFonts = async () => {
+            for (const [key, name] of [['roboto', 'Roboto'], ['opensans', 'Open Sans'], ['montserrat', 'Montserrat']]) {
+                const option = fontSelect.querySelector(`option[value="${key}"]`);
+                if (option) {
+                    try {
+                        await loadFont(key);
+                        option.textContent = name;
+                    } catch (error) {
+                        option.textContent = `${name} (Failed to load)`;
+                        option.disabled = true;
+                    }
+                }
+            }
+        };
+
+        // Text modal event listeners
+        textToGcodeButton.addEventListener('click', showTextModal);
+        textCancelButton.addEventListener('click', hideTextModal);
+        textCloseButton.addEventListener('click', hideTextModal);
+        textGenerateButton.addEventListener('click', handleTextToGcode);
+
+        // Font size slider
+        fontSizeSlider.addEventListener('input', (e) => {
+            fontSizeValue.textContent = `${e.target.value}px`;
+        });
+
+        // Initialize fonts on page load
+        initializeFonts().catch(console.error);
 
         // ---------------- QR → G-code ----------------
         const showQrModal = async () => {
