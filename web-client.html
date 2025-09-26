@@ -712,6 +712,13 @@
     const textCancelButton = document.getElementById('textCancelButton');
     const textCloseButton = document.getElementById('textCloseButton');
 
+        // Helper function to update text send button state
+        const updateTextSendButtonState = () => {
+            const hasGcode = gcodeTextarea.value.trim().length > 0;
+            const isConnected = labelMakerCharacteristic !== null;
+            textSendGcodeButton.disabled = !(hasGcode && isConnected);
+        };
+
         // Preview stroke width in mm
         let currentStrokeWidth = 2.0;
 
@@ -804,8 +811,9 @@
                 penUpButton.disabled = false;
                 sendTextButton.disabled = false;
                 sendSampleGcodeButton.disabled = false;
-                textSendGcodeButton.disabled = false;
                 disconnectButton.disabled = false;
+                // Update text send button state based on connection and G-code availability
+                updateTextSendButtonState();
 
             } catch (error) {
                 updateStatus(`Connection failed: ${error}`);
@@ -1661,6 +1669,7 @@ M5`;
         });
         gcodeTextarea.addEventListener('input', (e) => {
             parseAndRenderGcode(e.target.value);
+            updateTextSendButtonState();
         });
         thicknessSlider.addEventListener('input', async (e) => {
             const v = parseFloat(e.target.value);
@@ -1726,6 +1735,7 @@ M5`;
             const g = buildSampleGcode();
             gcodeTextarea.value = g;
             parseAndRenderGcode(g);
+            updateTextSendButtonState();
         })();
 
         // ---------------- SVG → G-code ----------------
@@ -2302,6 +2312,7 @@ M5`;
                 currentQrConfig = null;
 
                 // Update send button state now that we have G-code
+                updateTextSendButtonState();
 
                 updateStatus(`Text converted to G-code: "${text}"`);
 
