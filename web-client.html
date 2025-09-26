@@ -1900,11 +1900,11 @@ M5`;
         const googleFonts = {
             'Lato': 'https://fonts.gstatic.com/s/lato/v25/S6u8w4BMUTPHh30AUi-qNiXg7eU0.woff2',
             'Montserrat': 'https://fonts.gstatic.com/s/montserrat/v31/JTUQjIg1_i6t8kCHKm459WxRyS7m0dR9pA.woff2',
-            'Oswald': 'https://fonts.gstatic.com/s/oswald/v57/TK3iWkUHHAIjg752Fz8Gl-1PK62t.woff2',
+            'Oswald': 'https://fonts.gstatic.com/s/oswald/v57/TK3iWkUHHAIjg752GT8Gl-1PKw.woff2',
             'Source Sans Pro': 'https://fonts.gstatic.com/s/sourcesanspro/v22/6xK3dSBYKcSV-LCoeQqfX1RYOo3qOK7l.woff2',
             'Raleway': 'https://fonts.gstatic.com/s/raleway/v29/1Ptxg8zYS_SKggPN4IAoAp_m.woff2',
             'Ubuntu': 'https://fonts.gstatic.com/s/ubuntu/v20/4iCs6KVjbNBYlgoKfw72nU6AFw.woff2',
-            'Nunito': 'https://fonts.gstatic.com/s/nunito/v26/XRXV3I6Li01BKofINeaE.woff2',
+            'Nunito': 'https://fonts.gstatic.com/s/nunito/v32/XRXX3I6Li01BKofIMNaDRs7nczIH.woff2',
             'Playfair Display': 'https://fonts.gstatic.com/s/playfairdisplay/v30/nuFiD-vYSZviVYUb_rj3ij__anPXBYf9pIA.woff2',
             'Merriweather': 'https://fonts.gstatic.com/s/merriweather/v30/u-440qyriQwlOrhSvowK_l5-fCZM.woff2',
             'Dancing Script': 'https://fonts.gstatic.com/s/dancingscript/v25/If2cXTr6YS-zF4S-kcSWSVi_sxjsohD9F50Ruu7BMSo3ROp-.woff2',
@@ -2211,10 +2211,10 @@ M5`;
             }
 
             // Add Google Fonts options
-            for (const [fontName, fontQuery] of Object.entries(googleFonts)) {
+            for (const [fontName, fontUrl] of Object.entries(googleFonts)) {
                 const option = document.createElement('option');
                 option.value = fontName;
-                option.textContent = `${fontName} (Loading...)`;
+                option.textContent = `${fontName} (not loaded)`;
                 googleGroup.appendChild(option);
             }
 
@@ -2230,12 +2230,12 @@ M5`;
                 fontSelect.value = Object.keys(googleFonts)[0];
             }
 
-            // Load local fonts first for faster access, then some popular Google fonts
+            // Load local fonts first for faster access, then popular Google fonts
             const preloadFonts = [
                 // Local fonts (highest priority)
                 ...Object.keys(localFonts).map(key => key.charAt(0).toUpperCase() + key.slice(1)),
-                // Popular Google fonts
-                'Lato', 'Montserrat'
+                // Popular Google fonts (preload more for better UX)
+                'Lato', 'Montserrat', 'Oswald', 'Ubuntu', 'Nunito'
             ];
 
             preloadFonts.forEach(async (fontName) => {
@@ -2244,8 +2244,11 @@ M5`;
                     // Update the option text to show successful loading
                     const option = fontSelect.querySelector(`option[value="${fontName}"]`);
                     if (option) {
-                        // Remove loading indicator
-                        option.textContent = option.textContent.replace(' (Local, Loading...)', ' (Local)').replace(' (Loading...)', '');
+                        // Remove loading indicators
+                        option.textContent = option.textContent
+                            .replace(' (Local, Loading...)', ' (Local)')
+                            .replace(' (not loaded)', '')
+                            .replace(' (Loading...)', '');
                     }
                 } catch (error) {
                     console.warn(`Failed to preload font ${fontName}:`, error);
@@ -2262,6 +2265,37 @@ M5`;
         // Font size slider
         fontSizeSlider.addEventListener('input', (e) => {
             fontSizeValue.textContent = `${e.target.value}px`;
+        });
+
+        // Font selection change - load font on demand
+        fontSelect.addEventListener('change', async (e) => {
+            const selectedFont = e.target.value;
+            const selectedOption = fontSelect.querySelector(`option[value="${selectedFont}"]`);
+
+            // Check if font is already loaded
+            if (loadedFonts[selectedFont]) {
+                console.log(`Font ${selectedFont} already loaded`);
+                return;
+            }
+
+            // Only load if font is not already loaded
+            if (selectedOption) {
+                const originalText = selectedOption.textContent;
+                selectedOption.textContent = selectedFont + ' (Loading...)';
+
+                try {
+                    console.log(`Loading font on demand: ${selectedFont}`);
+                    await loadFont(selectedFont);
+
+                    // Update option to show successful loading - remove all loading indicators
+                    selectedOption.textContent = selectedFont;
+                    console.log(`Successfully loaded font: ${selectedFont}`);
+                } catch (error) {
+                    console.warn(`Failed to load font ${selectedFont}:`, error);
+                    selectedOption.textContent = selectedFont + ' (Failed)';
+                    selectedOption.disabled = true;
+                }
+            }
         });
 
         // Initialize fonts on page load
