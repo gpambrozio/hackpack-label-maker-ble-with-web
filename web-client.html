@@ -472,17 +472,6 @@
                                     </div>
                                 </div>
                             </div>
-                            <!-- Text to G-code Button -->
-                            <button id="textToGcodeButton" class="btn btn-secondary btn-sm" title="Convert text to G-code using fonts">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                    <polyline points="14,2 14,8 20,8"/>
-                                    <line x1="16" y1="13" x2="8" y2="13"/>
-                                    <line x1="16" y1="17" x2="8" y2="17"/>
-                                    <polyline points="10,9 9,9 8,9"/>
-                                </svg>
-                                Text
-                            </button>
                         </div>
                         <div class="preview-frame p-0 md:p-2">
                             <div class="tape-surface w-fit">
@@ -713,7 +702,6 @@
     const svgDropZone = document.getElementById('svgDropZone');
     const svgFileInput = document.getElementById('svgFileInput');
     // Text to G-code elements
-    const textToGcodeButton = document.getElementById('textToGcodeButton');
     const textModal = document.getElementById('textModal');
     const textInput = document.getElementById('textInput');
     const fontSelect = document.getElementById('fontSelect');
@@ -2447,7 +2435,6 @@ M5`;
         };
 
         // Update text button to toggle inline section instead of modal
-        textToGcodeButton.addEventListener('click', toggleTextSection);
         textToggleButton.addEventListener('click', toggleTextSection);
 
         // ---------------- QR → G-code ----------------
