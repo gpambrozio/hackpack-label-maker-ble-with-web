@@ -383,10 +383,19 @@ void readBTCmd()
       }
       else if (command.equalsIgnoreCase("print-raw-data"))
       {
-        // Append chunk to buffer
+        // Append chunk to buffer with bounds checking
         if (gcode_chunk_active)
         {
-          gcode_chunk_buffer += params;
+          // Prevent memory overflow - limit total buffer size to 4KB
+          if (gcode_chunk_buffer.length() + params.length() <= 4096)
+          {
+            gcode_chunk_buffer += params;
+          }
+          else
+          {
+            Serial.println("G-code buffer overflow; ignoring chunk to prevent memory issues.");
+            bleNotify("Error: G-code too large");
+          }
         }
         else
         {
@@ -1130,6 +1139,10 @@ void line(int newx, int newy, bool drawing)
 
         yStepper.step(diry);
       }
+      // Service BLE every 50 steps to prevent disconnection during long lines
+      if (i % 50 == 0) {
+        yield();
+      }
       // delay(1);
     }
   }
@@ -1149,6 +1162,10 @@ void line(int newx, int newy, bool drawing)
         // Serial.print("Xsteps: ");
         // Serial.println(dirx);
         xStepper.step(dirx);
+      }
+      // Service BLE every 50 steps to prevent disconnection during long lines
+      if (i % 50 == 0) {
+        yield();
       }
       // delay(1);
     }
@@ -1281,7 +1298,9 @@ void executeRawGCode(const String &program)
     if (screenLocked) {
       int pct = (total > 0) ? (processed * 100) / total : 0;
       lcdShowProgress(pct);
-    } });
+    }
+    // Service BLE connection during long operations
+    yield(); });
 
   // Parse and execute
   parser.process(program);

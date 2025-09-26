@@ -841,19 +841,32 @@
             }
             const encoder = new TextEncoder();
             const MAX_PAYLOAD = 480; // leave headroom for command and comma
+            const CHUNK_DELAY_MS = 50; // delay between chunks to prevent overwhelming BLE
             try {
                 // begin
                 updateStatus('Sending G-code: 0%');
                 await writeCommand('print-raw-begin,');
-                // stream chunks
+
+                // stream chunks with delays and connection verification
                 let i = 0;
                 while (i < program.length) {
+                    // Check if still connected before sending each chunk
+                    if (!labelMakerDevice || !labelMakerDevice.gatt.connected) {
+                        throw new Error('Device disconnected during transmission');
+                    }
+
                     const slice = program.slice(i, i + MAX_PAYLOAD);
                     // send as print-raw-data,<chunk>
                     await writeCommand(`print-raw-data,${slice}`);
+
                     const pct = Math.min(100, Math.floor((i + slice.length) / program.length * 100));
                     updateStatus(`Sending G-code: ${pct}%`);
                     i += slice.length;
+
+                    // Small delay between chunks to allow Arduino to process
+                    if (i < program.length) {
+                        await new Promise(resolve => setTimeout(resolve, CHUNK_DELAY_MS));
+                    }
                 }
                 // end
                 await writeCommand('print-raw-end,');
@@ -861,6 +874,14 @@
             } catch (error) {
                 updateStatus(`Chunked send failed: ${error}`);
                 console.error('Chunked send error:', error);
+                // Attempt to clean up chunked state on Arduino if still connected
+                try {
+                    if (labelMakerDevice && labelMakerDevice.gatt.connected) {
+                        await writeCommand('print-raw-end,');
+                    }
+                } catch (cleanupError) {
+                    console.error('Cleanup failed:', cleanupError);
+                }
             }
         };
 
