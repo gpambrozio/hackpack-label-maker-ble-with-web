@@ -611,7 +611,7 @@
                     <select id="fontSelect" class="input w-full">
                         <option value="roboto">Roboto (Loading...)</option>
                         <option value="opensans">Open Sans (Loading...)</option>
-                        <option value="montserrat">Montserrat (Loading...)</option>
+                        <option value="inter">Inter (Loading...)</option>
                     </select>
                 </div>
                 <div class="space-y-2">
@@ -1888,11 +1888,11 @@ M5`;
 
         // ---------------- Text → G-code ----------------
 
-        // Font URLs for popular web fonts
+        // Font URLs for popular web fonts - using TTF files from reliable CDNs
         const fontUrls = {
-            roboto: 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-Regular.ttf',
-            opensans: 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/opensans/OpenSans-Regular.ttf',
-            montserrat: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/montserrat/Montserrat-Regular.ttf'
+            roboto: 'https://raw.githubusercontent.com/google/fonts/main/apache/roboto/Roboto-Regular.ttf',
+            opensans: 'https://raw.githubusercontent.com/google/fonts/main/apache/opensans/OpenSans-Regular.ttf',
+            inter: 'https://github.com/rsms/inter/raw/master/fonts/ttf/Inter-Regular.ttf'
         };
 
         // Cache for loaded fonts
@@ -1994,7 +1994,7 @@ M5`;
 
         // Initialize fonts by updating the select options
         const initializeFonts = async () => {
-            for (const [key, name] of [['roboto', 'Roboto'], ['opensans', 'Open Sans'], ['montserrat', 'Montserrat']]) {
+            for (const [key, name] of [['roboto', 'Roboto'], ['opensans', 'Open Sans'], ['inter', 'Inter']]) {
                 const option = fontSelect.querySelector(`option[value="${key}"]`);
                 if (option) {
                     try {
@@ -2003,6 +2003,7 @@ M5`;
                     } catch (error) {
                         option.textContent = `${name} (Failed to load)`;
                         option.disabled = true;
+                        console.error(`Failed to load ${name}:`, error);
                     }
                 }
             }
