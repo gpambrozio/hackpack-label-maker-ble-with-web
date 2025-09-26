@@ -1888,32 +1888,108 @@ M5`;
 
         // ---------------- Text → G-code ----------------
 
-        // Font URLs using Bunny Fonts CDN with proper CORS headers and TTF support
+        // Font URLs using local TTF files from the same directory
         const fontUrls = {
-            roboto: 'https://fonts.bunny.net/roboto/files/roboto-latin-400-normal.ttf',
-            opensans: 'https://fonts.bunny.net/open-sans/files/open-sans-latin-400-normal.ttf',
-            inter: 'https://fonts.bunny.net/inter/files/inter-latin-400-normal.ttf'
+            roboto: './Roboto-Regular.ttf',
+            opensans: './OpenSans-Regular.ttf',
+            inter: './Inter-Regular.ttf'
         };
 
         // Cache for loaded fonts
         const loadedFonts = {};
 
-        // Load a font and cache it
+        // Load a font and cache it with fallback to built-in simple font
         const loadFont = async (fontKey) => {
             if (loadedFonts[fontKey]) {
                 return loadedFonts[fontKey];
             }
 
             return new Promise((resolve, reject) => {
+                // Try loading the TTF font directly with opentype.js
                 opentype.load(fontUrls[fontKey], (err, font) => {
                     if (err) {
-                        reject(new Error(`Failed to load ${fontKey}: ${err.message}`));
+                        console.warn(`Failed to load external font ${fontKey}:`, err);
+                        console.warn('Trying fallback font...');
+                        // Fallback: create a simple built-in font using opentype.js
+                        createSimpleFont(fontKey).then(resolve).catch(reject);
                     } else {
                         loadedFonts[fontKey] = font;
                         resolve(font);
                     }
                 });
             });
+        };
+
+        // Create a simple built-in font as fallback
+        const createSimpleFont = async (fontKey) => {
+            try {
+                // Create a minimal font with basic glyphs using opentype.js
+                const notdefGlyph = new opentype.Glyph({
+                    name: '.notdef',
+                    unicode: 0,
+                    advanceWidth: 500,
+                    path: new opentype.Path()
+                });
+
+                // Create basic ASCII glyphs (simplified rectangles for demonstration)
+                const glyphs = [notdefGlyph];
+
+                // Add basic alphabet glyphs (simplified paths)
+                for (let i = 32; i < 127; i++) { // ASCII printable characters
+                    const char = String.fromCharCode(i);
+                    const glyph = new opentype.Glyph({
+                        name: char,
+                        unicode: i,
+                        advanceWidth: i === 32 ? 250 : 500, // space is narrower
+                        path: createSimpleGlyphPath(char)
+                    });
+                    glyphs.push(glyph);
+                }
+
+                const font = new opentype.Font({
+                    familyName: `Simple ${fontKey}`,
+                    styleName: 'Regular',
+                    unitsPerEm: 1000,
+                    ascender: 800,
+                    descender: -200,
+                    glyphs: glyphs
+                });
+
+                loadedFonts[fontKey] = font;
+                return font;
+            } catch (error) {
+                throw new Error(`Failed to create fallback font: ${error.message}`);
+            }
+        };
+
+        // Create a simple path for basic characters (very basic block letters)
+        const createSimpleGlyphPath = (char) => {
+            const path = new opentype.Path();
+
+            if (char === ' ') {
+                // Space character - empty path
+                return path;
+            }
+
+            // Create a simple rectangular approximation for all other characters
+            // This is just a fallback - real fonts would have proper character shapes
+            path.moveTo(50, 0);
+            path.lineTo(450, 0);
+            path.lineTo(450, 700);
+            path.lineTo(50, 700);
+            path.closePath();
+
+            // Add some variation based on character
+            if (char.match(/[AEIOU]/i)) {
+                // Vowels get a hole in the middle
+                path.moveTo(200, 200);
+                path.lineTo(300, 200);
+                path.lineTo(300, 500);
+                path.lineTo(200, 500);
+                path.closePath();
+            }
+
+            return path;
         };
 
         // Convert text to SVG paths using opentype.js
@@ -1998,10 +2074,16 @@ M5`;
                 const option = fontSelect.querySelector(`option[value="${key}"]`);
                 if (option) {
                     try {
-                        await loadFont(key);
-                        option.textContent = name;
+                        const font = await loadFont(key);
+                        // Check if it's a fallback font (safely check the property)
+                        const familyName = font.names && font.names.familyName && font.names.familyName.value;
+                        if (familyName && familyName.startsWith('Simple')) {
+                            option.textContent = `${name} (Simple)`;
+                        } else {
+                            option.textContent = name;
+                        }
                     } catch (error) {
-                        option.textContent = `${name} (Failed to load)`;
+                        option.textContent = `${name} (Failed)`;
                         option.disabled = true;
                         console.error(`Failed to load ${name}:`, error);
                     }
