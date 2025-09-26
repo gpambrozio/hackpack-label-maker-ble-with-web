@@ -805,8 +805,8 @@
                 sendTextButton.disabled = false;
                 sendSampleGcodeButton.disabled = false;
                 disconnectButton.disabled = false;
-                // Only enable text send button if there's G-code available
-                textSendGcodeButton.disabled = !gcodeTextarea.value.trim();
+                // Update text send button state based on connection and G-code availability
+                updateTextSendButtonState();
 
             } catch (error) {
                 updateStatus(`Connection failed: ${error}`);
@@ -1491,6 +1491,7 @@ M5`;
             if (needSep) existing += ';';
             gcodeTextarea.value = existing + lines.join(';');
             parseAndRenderGcode(gcodeTextarea.value);
+            updateTextSendButtonState();
         };
 
         const setDrawEnabled = (on) => {
@@ -1609,6 +1610,7 @@ M5`;
             parseAndRenderGcode(g);
             currentProgramKind = 'manual';
             currentQrConfig = null;
+            updateTextSendButtonState();
         };
 
         /**
@@ -1652,6 +1654,7 @@ M5`;
             gcodeTextarea.value = crunchLogoGcode;
             parseAndRenderGcode(crunchLogoGcode);
             updateStatus('Loaded Crunch Labs logo sample into viewer.');
+            updateTextSendButtonState();
         };
         loadCrunchLabsButton.addEventListener('click', loadCrunchLabs);
         clearGCodeButton.addEventListener('click', () => {
@@ -1659,8 +1662,12 @@ M5`;
             parseAndRenderGcode('');
             currentProgramKind = 'manual';
             currentQrConfig = null;
+            updateTextSendButtonState();
         });
-        gcodeTextarea.addEventListener('input', (e) => parseAndRenderGcode(e.target.value));
+        gcodeTextarea.addEventListener('input', (e) => {
+            parseAndRenderGcode(e.target.value);
+            updateTextSendButtonState();
+        });
         thicknessSlider.addEventListener('input', async (e) => {
             const v = parseFloat(e.target.value);
             currentStrokeWidth = isFinite(v) ? v : 2.0;
@@ -1672,6 +1679,7 @@ M5`;
                     const g = buildQrGcode(currentQrConfig.text, currentQrConfig.inverse, currentStrokeWidth, currentQrConfig.ecc || 'M');
                     gcodeTextarea.value = g;
                     parseAndRenderGcode(g);
+                    updateTextSendButtonState();
                     if (qrLastUsedModuleSize && Math.abs(qrLastUsedModuleSize - currentStrokeWidth) > 1e-3) {
                         updateStatus(`QR re-generated. Module size clamped to ${qrLastUsedModuleSize.toFixed(2)} mm to fit.`);
                     } else {
@@ -1725,6 +1733,7 @@ M5`;
             const g = buildSampleGcode();
             gcodeTextarea.value = g;
             parseAndRenderGcode(g);
+            updateTextSendButtonState();
         })();
 
         // ---------------- SVG → G-code ----------------
@@ -1893,6 +1902,7 @@ M5`;
                             parseAndRenderGcode(gcode);
                             currentProgramKind = 'svg';
                             currentQrConfig = null;
+                            updateTextSendButtonState();
 
                             updateStatus(`SVG converted to G-code (${file.name})`);
                         } catch (error) {
@@ -2300,8 +2310,8 @@ M5`;
                 currentProgramKind = 'text';
                 currentQrConfig = null;
 
-                // Enable the send button now that we have G-code (only if connected)
-                textSendGcodeButton.disabled = !labelMakerCharacteristic;
+                // Update send button state now that we have G-code
+                updateTextSendButtonState();
 
                 updateStatus(`Text converted to G-code: "${text}"`);
 
@@ -2383,6 +2393,13 @@ M5`;
 
         // Text generation event listener
         textGenerateButton.addEventListener('click', handleTextToGcode);
+
+        // Helper function to update text send button state
+        const updateTextSendButtonState = () => {
+            const hasGcode = gcodeTextarea.value.trim().length > 0;
+            const isConnected = labelMakerCharacteristic !== null;
+            textSendGcodeButton.disabled = !(hasGcode && isConnected);
+        };
 
         // Text send G-code event listener - reuse existing sendSampleGcode function
         textSendGcodeButton.addEventListener('click', sendSampleGcode);
@@ -2667,6 +2684,7 @@ M5`;
                 parseAndRenderGcode(g);
                 currentProgramKind = 'qr';
                 currentQrConfig = { text, inverse, ecc };
+                updateTextSendButtonState();
                 setActiveTab(tabGcode);
                 if (qrLastUsedModuleSize && Math.abs(qrLastUsedModuleSize - currentStrokeWidth) > 1e-3) {
                     updateStatus(`QR ready (${inverse ? 'inverse' : 'normal'}). Module size clamped to ${qrLastUsedModuleSize.toFixed(2)} mm to fit.`);
