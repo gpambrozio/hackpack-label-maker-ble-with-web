@@ -514,6 +514,7 @@
                                 </div>
                                 <div class="flex items-center gap-2 justify-end">
                                     <button id="textGenerateButton" type="button" class="btn btn-sm">Generate G-code</button>
+                                    <button id="textSendGcodeButton" type="button" class="btn btn-sm" disabled>Send G-code</button>
                                 </div>
                             </div>
                         </div>
@@ -707,6 +708,7 @@
     const fontSelect = document.getElementById('fontSelect');
     const verticalTextCheckbox = document.getElementById('verticalTextCheckbox');
     const textGenerateButton = document.getElementById('textGenerateButton');
+    const textSendGcodeButton = document.getElementById('textSendGcodeButton');
     const textCancelButton = document.getElementById('textCancelButton');
     const textCloseButton = document.getElementById('textCloseButton');
 
@@ -803,6 +805,8 @@
                 sendTextButton.disabled = false;
                 sendSampleGcodeButton.disabled = false;
                 disconnectButton.disabled = false;
+                // Only enable text send button if there's G-code available
+                textSendGcodeButton.disabled = !gcodeTextarea.value.trim();
 
             } catch (error) {
                 updateStatus(`Connection failed: ${error}`);
@@ -1632,6 +1636,7 @@ M5`;
             penUpButton.disabled = true;
             sendTextButton.disabled = true;
             sendSampleGcodeButton.disabled = true;
+            textSendGcodeButton.disabled = true;
             disconnectButton.disabled = true;
         };
 
@@ -2295,6 +2300,9 @@ M5`;
                 currentProgramKind = 'text';
                 currentQrConfig = null;
 
+                // Enable the send button now that we have G-code (only if connected)
+                textSendGcodeButton.disabled = !labelMakerCharacteristic;
+
                 updateStatus(`Text converted to G-code: "${text}"`);
 
             } catch (error) {
@@ -2376,6 +2384,26 @@ M5`;
         // Text generation event listener
         textGenerateButton.addEventListener('click', handleTextToGcode);
 
+        // Text send G-code event listener
+        textSendGcodeButton.addEventListener('click', () => {
+            const gcode = gcodeTextarea.value.trim();
+            if (!gcode) {
+                updateStatus('No G-code to send. Generate G-code first.');
+                return;
+            }
+            if (!labelMakerCharacteristic) {
+                updateStatus('Not connected to device.');
+                return;
+            }
+
+            // Use the same logic as the main send button
+            if (gcode.length > 420) {
+                sendGcodeChunked(gcode);
+            } else {
+                writeCommand(`print-raw,${gcode}`);
+                updateStatus('G-code sent to device.');
+            }
+        });
 
         // Font selection change - load font on demand
         fontSelect.addEventListener('change', async (e) => {
