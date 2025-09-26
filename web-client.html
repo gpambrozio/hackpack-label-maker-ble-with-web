@@ -2384,26 +2384,8 @@ M5`;
         // Text generation event listener
         textGenerateButton.addEventListener('click', handleTextToGcode);
 
-        // Text send G-code event listener
-        textSendGcodeButton.addEventListener('click', () => {
-            const gcode = gcodeTextarea.value.trim();
-            if (!gcode) {
-                updateStatus('No G-code to send. Generate G-code first.');
-                return;
-            }
-            if (!labelMakerCharacteristic) {
-                updateStatus('Not connected to device.');
-                return;
-            }
-
-            // Use the same logic as the main send button
-            if (gcode.length > 420) {
-                sendGcodeChunked(gcode);
-            } else {
-                writeCommand(`print-raw,${gcode}`);
-                updateStatus('G-code sent to device.');
-            }
-        });
+        // Text send G-code event listener - reuse existing sendSampleGcode function
+        textSendGcodeButton.addEventListener('click', sendSampleGcode);
 
         // Font selection change - load font on demand
         fontSelect.addEventListener('change', async (e) => {
