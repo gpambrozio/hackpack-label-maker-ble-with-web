@@ -509,7 +509,7 @@
                             <div id="textContent" class="hidden border-t border-gray-600 p-3 space-y-4">
                                 <div class="space-y-2">
                                     <label for="textInput" class="engraved text-sm opacity-80">Text to convert</label>
-                                    <input id="textInput" type="text" placeholder="Enter text to engrave" class="input w-full" maxlength="20" />
+                                    <textarea id="textInput" placeholder="Enter text to engrave&#10;(multiple lines supported)" class="input w-full resize-none" rows="3"></textarea>
                                 </div>
                                 <div class="space-y-2">
                                     <label for="fontSelect" class="engraved text-sm opacity-80">Font</label>
@@ -652,7 +652,7 @@
             <div class="p-4 space-y-4">
                 <div class="space-y-2">
                     <label for="textInput" class="engraved text-sm opacity-80">Text to convert</label>
-                    <input id="textInput" type="text" placeholder="Enter text to engrave" class="input w-full" maxlength="20" />
+                    <textarea id="textInput" placeholder="Enter text to engrave&#10;(multiple lines supported)" class="input w-full resize-none" rows="3"></textarea>
                 </div>
                 <div class="space-y-2">
                     <label for="fontSelect" class="engraved text-sm opacity-80">Font</label>
@@ -2162,7 +2162,27 @@ M5`;
         const textToSvgPaths = async (text, fontKey, fontSize, isVertical = false) => {
             try {
                 const font = await loadFont(fontKey);
-                let path = font.getPath(text, 0, fontSize, fontSize);
+
+                // Split text into lines
+                const lines = text.split('\n');
+                const lineSpacing = fontSize * 1.2; // 1.2x line height
+
+                // Create combined path for all lines
+                let combinedPath = new opentype.Path();
+
+                lines.forEach((line, lineIndex) => {
+                    if (line.trim()) { // Only process non-empty lines
+                        const yPosition = lineIndex * lineSpacing;
+                        const linePath = font.getPath(line, 0, fontSize + yPosition, fontSize);
+
+                        // Add line path commands to combined path
+                        linePath.commands.forEach(cmd => {
+                            combinedPath.commands.push(cmd);
+                        });
+                    }
+                });
+
+                let path = combinedPath;
 
                 if (isVertical) {
                     // Rotate the path geometrically by 90 degrees clockwise
@@ -2225,7 +2245,7 @@ M5`;
 
         // Show text modal
         const showTextModal = () => {
-            textInput.value = 'Hello World';
+            textInput.value = 'Hello\nWorld';
             fontSizeSlider.value = '16';
             fontSizeValue.textContent = '16px';
             textModal.classList.remove('hidden');
