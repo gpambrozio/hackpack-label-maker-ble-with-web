@@ -1756,6 +1756,76 @@ M5`;
 
         // ---------------- SVG → G-code ----------------
 
+        // Optimize G-code to remove backtracking and redundant moves
+        const optimizeGcode = (gcodeLines) => {
+            // first, remove consecutive lines that repeat
+            const uniqueLines = [];
+            for (let i = 0; i < gcodeLines.length; i++) {
+                const line = gcodeLines[i];
+                if (i === 0 || line !== gcodeLines[i - 1]) {
+                    uniqueLines.push(line);
+                }
+            }
+
+            let lines = [...uniqueLines];
+
+            for (let i = 0; i < lines.length - 2; i++) {
+                const current = lines[i];
+                if (!current.startsWith('G1 ')) continue;
+
+                // Look for A→B→A pattern
+                let j = i + 2;
+                const future = lines[j];
+                if (!future.startsWith('G1 ') || current !== future) 
+                    continue;
+
+                // Found A→B→A, now extend the pattern symmetrically
+                let forwardIdx = j + 1;
+                let backwardIdx = i - 1;
+
+                // Keep extending while moves match symmetrically
+                while (lines[forwardIdx].startsWith('G1 ') &&
+                        lines[forwardIdx] === lines[backwardIdx]) {
+                    forwardIdx++;
+                    backwardIdx--;
+                }
+
+                // The start of the path is a G0 with a pen down after it
+                if (lines[backwardIdx] === 'M3' &&
+                    lines[backwardIdx - 1].startsWith('G0 ') &&
+                    lines[backwardIdx - 1].substring(3) === lines[forwardIdx].substring(3)
+                ) {
+                    forwardIdx++;
+                    backwardIdx--;
+                }
+
+                // We found the extent of the symmetric backtrack
+                // Remove from i+1 to j (inclusive)
+                const removeStart = j;
+                const removeEnd = forwardIdx - 1;
+                const removeCount = removeEnd - removeStart + 1;
+
+                // Get the position after the backtrack
+                let nextMove = null;
+                if (removeEnd + 1 < lines.length && lines[removeEnd + 1].startsWith('G1 ')) {
+                    nextMove = lines[removeEnd + 1];
+                }
+
+                // Remove the backtracking sequence
+                lines.splice(removeStart, removeCount);
+
+                // If there's a next move and it's different from current position,
+                // add pen up, move, pen down
+                if (nextMove && nextMove !== current) {
+                    lines.splice(removeStart, 0, 'M5'); // Pen up
+                    lines.splice(removeStart + 1, 0, nextMove.replace('G1', 'G0')); // Rapid move
+                    lines.splice(removeStart + 2, 0, 'M3'); // Pen down
+                }
+            }
+
+            return lines;
+        };
+
         // SVG to G-code conversion with proper MoveTo handling
         const convertSvgToGcode = (svgContent) => {
             try {
@@ -1856,7 +1926,9 @@ M5`;
                     });
                 });
 
-                return gcode.join(';');
+                // Optimize the G-code to remove backtracking
+                const optimizedGcode = optimizeGcode(gcode);
+                return optimizedGcode.join(';');
 
             } catch (error) {
                 throw new Error(`SVG conversion failed: ${error.message}`);
