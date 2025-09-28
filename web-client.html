@@ -420,7 +420,6 @@
             <div class="tabs">
                 <button id="tabGcode" class="tab active">G-code</button>
                 <button id="tabText" class="tab">Text</button>
-                <button id="tabRaw" class="tab">Raw</button>
             </div>
 
             <div class="flex-1 min-h-0 overflow-auto">
@@ -569,27 +568,6 @@
 
                 </section>
 
-                <!-- Raw section -->
-                <section id="sectionRaw" class="relative z-10 space-y-3 h-full hidden">
-                    <div class="flex items-center gap-2">
-                        <button id="penDownButton" class="btn btn-sm" disabled>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M6 18h12M8 14l8-8 2 2-8 8H8v-2z" stroke="white" stroke-width="2"
-                                    stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                            Pen Down
-                        </button>
-                        <button id="penUpButton" class="btn btn-secondary btn-sm" disabled>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M6 18h12M16 10l-2-2-6 6v2h2l6-6z" stroke="white" stroke-width="2"
-                                    stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                            Pen Up
-                        </button>
-                    </div>
-                </section>
             </div>
         </div>
 
@@ -694,8 +672,6 @@
 
         // Get UI elements
         const connectButton = document.getElementById('connectButton');
-        const penDownButton = document.getElementById('penDownButton');
-        const penUpButton = document.getElementById('penUpButton');
         const sendTextButton = document.getElementById('sendTextButton');
         const sendSampleGcodeButton = document.getElementById('sendSampleGcodeButton');
         const disconnectButton = document.getElementById('disconnectButton');
@@ -823,8 +799,6 @@
 
                 // Enable UI elements after successful connection
                 connectButton.disabled = true;
-                penDownButton.disabled = false;
-                penUpButton.disabled = false;
                 sendTextButton.disabled = false;
                 sendSampleGcodeButton.disabled = false;
                 disconnectButton.disabled = false;
@@ -1597,8 +1571,6 @@ M5`;
         };
 
         // UI actions
-        const sendPenDown = () => writeCommand('pen-down,');
-        const sendPenUp = () => writeCommand('pen-up,');
         const sendText = () => {
             const txt = (labelTextInput.value || '').trim();
             if (!txt) {
@@ -1655,8 +1627,6 @@ M5`;
             labelMakerDevice = null;
             labelMakerCharacteristic = null;
             connectButton.disabled = false;
-            penDownButton.disabled = true;
-            penUpButton.disabled = true;
             sendTextButton.disabled = true;
             sendSampleGcodeButton.disabled = true;
             textSendGcodeButton.disabled = true;
@@ -1665,8 +1635,6 @@ M5`;
 
         // Attach event listeners to buttons
         connectButton.addEventListener('click', connectDevice);
-        penDownButton.addEventListener('click', sendPenDown);
-        penUpButton.addEventListener('click', sendPenUp);
         sendTextButton.addEventListener('click', sendText);
         sendSampleGcodeButton.addEventListener('click', sendSampleGcode);
         disconnectButton.addEventListener('click', disconnectDevice);
@@ -1724,14 +1692,12 @@ M5`;
         // Tabs
         const tabText = document.getElementById('tabText');
         const tabGcode = document.getElementById('tabGcode');
-        const tabRaw = document.getElementById('tabRaw');
         const sectionText = document.getElementById('sectionText');
         const sectionGcode = document.getElementById('sectionGcode');
-        const sectionRaw = document.getElementById('sectionRaw');
 
         const setActiveTab = (target) => {
-            const tabs = [tabText, tabGcode, tabRaw];
-            const sections = [sectionText, sectionGcode, sectionRaw];
+            const tabs = [tabText, tabGcode];
+            const sections = [sectionText, sectionGcode];
             tabs.forEach((t, i) => {
                 const active = t === target;
                 t.classList.toggle('active', active);
@@ -1744,7 +1710,6 @@ M5`;
         };
         tabText.addEventListener('click', () => setActiveTab(tabText));
         tabGcode.addEventListener('click', () => setActiveTab(tabGcode));
-        tabRaw.addEventListener('click', () => setActiveTab(tabRaw));
 
         // Initialize textarea with sample and render preview
         (function initSample() {
